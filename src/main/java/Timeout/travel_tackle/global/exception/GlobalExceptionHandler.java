@@ -25,7 +25,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(ErrorResponse.of(errorCode, request.getRequestURI()));
+                .body(ErrorResponse.of(errorCode, resolveMessage(errorCode, errorCode.getMessage(), request), request.getRequestURI()));
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
@@ -46,7 +46,7 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(ErrorResponse.of(errorCode, exception.getMessage(), request.getRequestURI()));
+                .body(ErrorResponse.of(errorCode, resolveMessage(errorCode, exception.getMessage(), request), request.getRequestURI()));
     }
 
     @ExceptionHandler(Exception.class)
@@ -59,6 +59,17 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity
                 .status(errorCode.getStatus())
-                .body(ErrorResponse.of(errorCode, request.getRequestURI()));
+                .body(ErrorResponse.of(errorCode, resolveMessage(errorCode, errorCode.getMessage(), request), request.getRequestURI()));
+    }
+
+    /**
+     * Accept-Language가 en으로 시작하고 해당 코드에 영어 메시지가 준비돼 있으면 그걸 쓰고,
+     * 아니면 기본(한국어 또는 상황별 커스텀) 메시지를 그대로 쓴다. 프론트는 앱에서 선택한 언어를
+     * 그대로 이 헤더에 실어 보내야 한다(브라우저 기본값에 맡기지 않음).
+     */
+    private String resolveMessage(ErrorCode errorCode, String defaultMessage, HttpServletRequest request) {
+        String acceptLanguage = request.getHeader("Accept-Language");
+        boolean english = acceptLanguage != null && acceptLanguage.toLowerCase().startsWith("en");
+        return english && errorCode.getMessageEn() != null ? errorCode.getMessageEn() : defaultMessage;
     }
 }

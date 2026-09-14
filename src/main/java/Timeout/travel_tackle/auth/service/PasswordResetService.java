@@ -52,15 +52,15 @@ public class PasswordResetService {
 
         userRepository.findByEmail(email)
                 .filter(user -> user.getPasswordHash() != null)
-                .ifPresent(user -> sendResetCodeWithoutFailingRequest(email, code));
+                .ifPresent(user -> sendResetCodeWithoutFailingRequest(email, code, user.getPreferredLanguage()));
     }
 
     // 메일 발송 실패가 이 메서드의 트랜잭션을 롤백시키면(위에서 저장한 PasswordReset row까지 함께
     // 사라짐) 실패 여부가 "계정 존재 여부"와 상관관계를 갖게 되어 계정 열거 방지가 깨진다.
     // 그래서 발송 실패는 응답에 반영하지 않고 삼킨다(실패 자체는 mail sender가 이미 로그로 남김).
-    private void sendResetCodeWithoutFailingRequest(String email, String code) {
+    private void sendResetCodeWithoutFailingRequest(String email, String code, String language) {
         try {
-            verificationMailSender.sendPasswordResetCode(email, code);
+            verificationMailSender.sendPasswordResetCode(email, code, language);
         } catch (CustomException exception) {
             // 로그는 SmtpVerificationMailSender에서 이미 남김 — 여기서는 응답/트랜잭션을 지키기 위해 무시
         }

@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
@@ -11,7 +12,8 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "cart_items", uniqueConstraints = @UniqueConstraint(
-        columnNames = {"user_id", "tour_api_content_id"}
+        name = "uk_cart_items_user_content_service",
+        columnNames = {"user_id", "tour_api_content_id", "tour_api_service"}
 ))
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -27,6 +29,10 @@ public class CartItem {
 
     @Column(name = "tour_api_content_id", nullable = false)
     private String tourApiContentId; //Tour API에서 제공하는 관광 컨테츠 고유 ID
+
+    @ColumnDefault("'KorService2'")
+    @Column(name = "tour_api_service", nullable = false)
+    private String tourApiService; //언어별 TourAPI 서비스(KorService2/EngService2/...) — contentId는 서비스마다 다른 값이라 반드시 함께 저장
 
     @Column(name = "cached_title", nullable = false)
     private String cachedTitle; //관광지 이름
@@ -53,11 +59,12 @@ public class CartItem {
     @Column(name = "added_at", nullable = false, updatable = false)
     private LocalDateTime addedAt; //바구니에 담은 시간
 
-    public CartItem(User user, String tourApiContentId, String cachedTitle,
+    public CartItem(User user, String tourApiContentId, String tourApiService, String cachedTitle,
                     String cachedImageUrl, String cachedRegionCode, String cachedContentTypeId,
                     String cachedLclsSystm1, String cachedLclsSystm2, String cachedLclsSystm3) {
         this.user = user;
         this.tourApiContentId = tourApiContentId;
+        this.tourApiService = tourApiService;
         this.cachedTitle = cachedTitle;
         this.cachedImageUrl = cachedImageUrl;
         this.cachedRegionCode = cachedRegionCode;

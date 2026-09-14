@@ -8,6 +8,7 @@ import Timeout.travel_tackle.global.exception.CustomException;
 import Timeout.travel_tackle.global.exception.ErrorCode;
 import Timeout.travel_tackle.global.util.UuidConverter;
 import Timeout.travel_tackle.tour.dto.TourDtos.ContentDetail;
+import Timeout.travel_tackle.tour.service.TourLanguageResolver;
 import Timeout.travel_tackle.tour.service.TourService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,19 +27,21 @@ public class CartService {
     private final TourService tourService;
 
     @Transactional
-    public CartItemResponse add(String subject, String contentId) {
+    public CartItemResponse add(String subject, String contentId, String language) {
+        String service = TourLanguageResolver.toService(language);
         UUID userId = parseUserId(subject);
-        if (cartItemRepository.existsByUserIdAndTourApiContentId(userId, contentId)) {
+        if (cartItemRepository.existsByUserIdAndTourApiContentIdAndTourApiService(userId, contentId, service)) {
             throw new CustomException(ErrorCode.CART_ITEM_ALREADY_EXISTS);
         }
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHENTICATED));
-        ContentDetail content = tourService.getContentDetail(contentId);
+        ContentDetail content = tourService.getContentDetail(service, contentId);
 
         CartItem cartItem = cartItemRepository.save(new CartItem(
                 user,
                 content.contentId(),
+                service,
                 content.title(),
                 content.imageUrl(),
                 content.areaCode(),
@@ -67,8 +70,8 @@ public class CartService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHENTICATED));
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(user, tourApiContentId, cachedTitle, cachedImageUrl, cachedRegionCode,
-                        null, null, null, null));
+                new CartItem(user, tourApiContentId, TourLanguageResolver.DEFAULT_SERVICE, cachedTitle,
+                        cachedImageUrl, cachedRegionCode, null, null, null, null));
         return CartItemResponse.from(cartItem);
     }
 

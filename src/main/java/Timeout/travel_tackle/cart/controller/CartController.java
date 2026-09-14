@@ -38,7 +38,7 @@ public class CartController {
     ) {
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(cartService.add(jwt.getSubject(), request.contentId()));
+                .body(cartService.add(jwt.getSubject(), request.contentId(), request.language()));
     }
 
     @GetMapping
@@ -57,6 +57,6 @@ public class CartController {
         return ResponseEntity.noContent().build();
     }
 
-    public record AddCartItemRequest(@NotBlank String contentId) {
+    public record AddCartItemRequest(@NotBlank String contentId, String language) {
     }
 }

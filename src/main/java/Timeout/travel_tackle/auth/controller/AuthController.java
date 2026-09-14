@@ -45,7 +45,7 @@ public class AuthController {
     public ResponseEntity<Void> requestEmailVerification(
             @Valid @RequestBody EmailVerificationRequest request
     ) {
-        emailVerificationService.requestCode(request.email());
+        emailVerificationService.requestCode(request.email(), request.language());
         return ResponseEntity.accepted().build();
     }
 

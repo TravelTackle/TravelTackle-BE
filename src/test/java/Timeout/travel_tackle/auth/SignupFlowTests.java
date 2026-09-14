@@ -53,7 +53,7 @@ class SignupFlowTests {
         String email = "USER@example.com";
         String password = "password123!";
 
-        emailVerificationService.requestCode(email);
+        emailVerificationService.requestCode(email, "ko");
         String code = mailSender.getCode("user@example.com");
         emailVerificationService.confirmCode(email, code);
 
@@ -89,12 +89,12 @@ class SignupFlowTests {
         private final Map<String, String> codes = new ConcurrentHashMap<>();
 
         @Override
-        public void sendVerificationCode(String email, String code) {
+        public void sendVerificationCode(String email, String code, String language) {
             codes.put(email, code);
         }
 
         @Override
-        public void sendPasswordResetCode(String email, String code) {
+        public void sendPasswordResetCode(String email, String code, String language) {
             codes.put(email, code);
         }
 

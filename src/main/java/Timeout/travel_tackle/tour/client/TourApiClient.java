@@ -70,10 +70,23 @@ public class TourApiClient {
             int size,
             String arrange
     ) {
-        return request("areaBasedList2", builder -> {
+        return getAreaContents(DEFAULT_SERVICE, areaCode, sigunguCode, contentTypeId, page, size, arrange);
+    }
+
+    /** 언어별 서비스로 지역 기반 콘텐츠 조회(키워드 없음). */
+    public TourApiResult getAreaContents(
+            String service,
+            String areaCode,
+            String sigunguCode,
+            String contentTypeId,
+            int page,
+            int size,
+            String arrange
+    ) {
+        return request(service, "areaBasedList2", builder -> {
             addIfPresent(builder, "areaCode", areaCode);
             addIfPresent(builder, "sigunguCode", sigunguCode);
-            addIfPresent(builder, "contentTypeId", contentTypeId);
+            addContentTypeIfSupported(builder, service, contentTypeId);
             builder.queryParam("pageNo", page)
                     .queryParam("numOfRows", size)
                     .queryParam("arrange", arrange);
@@ -111,7 +124,7 @@ public class TourApiClient {
                     .queryParam("arrange", arrange);
             addIfPresent(builder, "areaCode", areaCode);
             addIfPresent(builder, "sigunguCode", sigunguCode);
-            addIfPresent(builder, "contentTypeId", contentTypeId);
+            addContentTypeIfSupported(builder, service, contentTypeId);
         });
     }
 
@@ -135,11 +148,21 @@ public class TourApiClient {
     }
 
     public TourApiResult getCommonDetail(String contentId) {
-        return request("detailCommon2", builder -> builder.queryParam("contentId", contentId));
+        return getCommonDetail(DEFAULT_SERVICE, contentId);
+    }
+
+    /** 언어별 서비스로 상세 조회 — 언어별 contentId는 서로 다른 값이므로 반드시 같은 서비스로 조회한 contentId를 넘겨야 한다. */
+    public TourApiResult getCommonDetail(String service, String contentId) {
+        return request(service, "detailCommon2", builder -> builder.queryParam("contentId", contentId));
     }
 
     public TourApiResult getImages(String contentId) {
-        return request("detailImage2", builder -> builder
+        return getImages(DEFAULT_SERVICE, contentId);
+    }
+
+    /** 언어별 서비스로 이미지 조회. */
+    public TourApiResult getImages(String service, String contentId) {
+        return request(service, "detailImage2", builder -> builder
                 .queryParam("contentId", contentId)
                 .queryParam("imageYN", "Y")
                 .queryParam("subImageYN", "Y")
@@ -203,7 +226,7 @@ public class TourApiClient {
     ) {
         return request(service, "areaBasedList2", builder -> {
             addIfPresent(builder, "lDongRegnCd", lDongRegnCd);
-            addIfPresent(builder, "contentTypeId", contentTypeId);
+            addContentTypeIfSupported(builder, service, contentTypeId);
             addIfPresent(builder, "lclsSystm1", lclsSystm1);
             addIfPresent(builder, "lclsSystm2", lclsSystm2);
             builder.queryParam("pageNo", page)
@@ -306,6 +329,19 @@ public class TourApiClient {
     private void addIfPresent(UriBuilder builder, String name, String value) {
         if (StringUtils.hasText(value)) {
             builder.queryParam(name, value);
+        }
+    }
+
+    /**
+     * contentTypeId(관광지/음식점/숙박 등 콘텐츠 타입) 코드는 서비스마다 다르다 — 실측 확인:
+     * 경복궁이 KorService2에서는 contentTypeId=12, EngService2에서는 76. 한국어 코드를 그대로
+     * 다른 언어 서비스에 보내면 다른 필터(lDongRegnCd/lclsSystm 등)와 상관없이 결과가 0건으로
+     * 나온다 — 그래서 기본(KorService2) 서비스일 때만 이 필터를 보낸다. 다른 언어는 lclsSystm
+     * (분류체계)이 유일하게 언어 공통이라 그걸로 대신 거른다.
+     */
+    private void addContentTypeIfSupported(UriBuilder builder, String service, String contentTypeId) {
+        if (DEFAULT_SERVICE.equals(service)) {
+            addIfPresent(builder, "contentTypeId", contentTypeId);
         }
     }
 

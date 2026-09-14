@@ -14,6 +14,7 @@ import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
 import java.io.UnsupportedEncodingException;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -36,27 +37,47 @@ public class SmtpVerificationMailSender implements VerificationMailSender {
     private long passwordResetExpirationMinutes;
 
     @Override
-    public void sendVerificationCode(String email, String code) {
+    public void sendVerificationCode(String email, String code, String language) {
+        String lang = normalizeLanguage(language);
         String html = buildHtml(
-                "이메일 인증번호",
-                "아래 인증번호를 인증 화면에 입력해 주세요.",
+                lang,
+                label(lang, Map.of("ko", "이메일 인증번호", "en", "Email Verification Code")),
+                label(lang, Map.of("ko", "아래 인증번호를 인증 화면에 입력해 주세요.",
+                        "en", "Enter the code below on the verification screen.")),
                 code,
                 verificationExpirationMinutes,
                 null
         );
-        send(email, "[트래블 참견] 이메일 인증번호", html, ErrorCode.EMAIL_DELIVERY_FAILED);
+        String subject = label(lang, Map.of("ko", "[트래블 참견] 이메일 인증번호",
+                "en", "[Travel Tackle] Email Verification Code"));
+        send(email, subject, html, ErrorCode.EMAIL_DELIVERY_FAILED);
     }
 
     @Override
-    public void sendPasswordResetCode(String email, String code) {
+    public void sendPasswordResetCode(String email, String code, String language) {
+        String lang = normalizeLanguage(language);
         String html = buildHtml(
-                "비밀번호 재설정 인증번호",
-                "아래 인증번호를 비밀번호 재설정 화면에 입력해 주세요.",
+                lang,
+                label(lang, Map.of("ko", "비밀번호 재설정 인증번호", "en", "Password Reset Code")),
+                label(lang, Map.of("ko", "아래 인증번호를 비밀번호 재설정 화면에 입력해 주세요.",
+                        "en", "Enter the code below on the password reset screen.")),
                 code,
                 passwordResetExpirationMinutes,
-                "본인이 요청하지 않았다면 이 메일을 무시해 주세요."
+                label(lang, Map.of("ko", "본인이 요청하지 않았다면 이 메일을 무시해 주세요.",
+                        "en", "If you didn't request this, please ignore this email."))
         );
-        send(email, "[트래블 참견] 비밀번호 재설정 인증번호", html, ErrorCode.PASSWORD_RESET_DELIVERY_FAILED);
+        String subject = label(lang, Map.of("ko", "[트래블 참견] 비밀번호 재설정 인증번호",
+                "en", "[Travel Tackle] Password Reset Code"));
+        send(email, subject, html, ErrorCode.PASSWORD_RESET_DELIVERY_FAILED);
+    }
+
+    /** 이 서비스의 기본 언어는 한국어 — "en"으로 명시된 경우에만 영어, 그 외(빈 값 포함)는 한국어. */
+    private String normalizeLanguage(String language) {
+        return "en".equalsIgnoreCase(language) ? "en" : "ko";
+    }
+
+    private String label(String lang, Map<String, String> labels) {
+        return labels.getOrDefault(lang, labels.get("en"));
     }
 
     private void send(String to, String subject, String html, ErrorCode failureCode) {
@@ -81,11 +102,16 @@ public class SmtpVerificationMailSender implements VerificationMailSender {
 
     // 디자인 토큰(브랜드 #2563EB / 다크 #1D4ED8 / 라이트배경 #EFF6FF / 텍스트 #0F172A)은
     // 프론트엔드와 동일하게 맞춘 것 — 프론트 디자인이 바뀌면 이 값도 함께 갱신
-    private String buildHtml(String title, String intro, String code, long minutes, String extraNote) {
+    private String buildHtml(String lang, String title, String intro, String code, long minutes, String extraNote) {
         String noteLine = extraNote == null ? "" : "<br>" + extraNote;
+        String expiryTemplate = label(lang, Map.of(
+                "ko", "%d분 안에 입력해 주세요.",
+                "en", "Please enter it within %d minutes."));
+        String expiryLine = expiryTemplate.formatted(minutes);
+        String brandName = label(lang, Map.of("ko", "트래블 참견", "en", "Travel Tackle"));
         return """
                 <!DOCTYPE html>
-                <html lang="ko">
+                <html lang="%s">
                 <head>
                 <meta charset="UTF-8">
                 <meta name="color-scheme" content="light">
@@ -101,7 +127,7 @@ public class SmtpVerificationMailSender implements VerificationMailSender {
                         <table role="presentation" width="480" cellpadding="0" cellspacing="0" bgcolor="#FFFFFE" style="max-width:480px;width:100%%;background-color:#FFFFFE;border-radius:8px;box-shadow:0 4px 16px rgba(15,23,42,.05);overflow:hidden;">
                           <tr>
                             <td style="padding:28px 32px 20px 32px;text-align:center;">
-                              <img src="cid:logo" width="160" height="40" alt="트래블 참견" style="display:block;margin:0 auto;">
+                              <img src="cid:logo" width="160" height="40" alt="%s" style="display:block;margin:0 auto;">
                             </td>
                           </tr>
                           <tr>
@@ -111,12 +137,12 @@ public class SmtpVerificationMailSender implements VerificationMailSender {
                               <div style="text-align:center;background-color:#EFF6FF;border-radius:8px;padding:20px;margin-bottom:24px;">
                                 <span style="font-size:32px;font-weight:800;letter-spacing:8px;color:#2563EB;">%s</span>
                               </div>
-                              <p style="margin:0;font-size:13px;line-height:1.6;color:#64748B;">%d분 안에 입력해 주세요.%s</p>
+                              <p style="margin:0;font-size:13px;line-height:1.6;color:#64748B;">%s%s</p>
                             </td>
                           </tr>
                           <tr>
                             <td style="padding:20px 32px;background-color:#EFF6FF;text-align:center;">
-                              <p style="margin:0;font-size:12px;color:#94A3B8;">&copy; 트래블 참견</p>
+                              <p style="margin:0;font-size:12px;color:#94A3B8;">&copy; %s</p>
                             </td>
                           </tr>
                         </table>
@@ -125,7 +151,7 @@ public class SmtpVerificationMailSender implements VerificationMailSender {
                   </table>
                 </body>
                 </html>
-                """.formatted(title, intro, code, minutes, noteLine);
+                """.formatted(lang, brandName, title, intro, code, expiryLine, noteLine, brandName);
     }
 
     private String sanitize(String message) {

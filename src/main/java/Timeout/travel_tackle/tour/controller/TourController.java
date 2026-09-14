@@ -10,6 +10,7 @@ import Timeout.travel_tackle.tour.dto.TourDtos.ContentSummary;
 import Timeout.travel_tackle.tour.dto.TourDtos.Festival;
 import Timeout.travel_tackle.tour.dto.TourDtos.Page;
 import Timeout.travel_tackle.tour.recommendation.service.RecommendationService;
+import Timeout.travel_tackle.tour.service.TourLanguageResolver;
 import Timeout.travel_tackle.tour.service.TourService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -37,12 +38,15 @@ public class TourController {
 
     @GetMapping("/recommended")
     @Operation(summary = "선호도 기반 섹션 추천")
-    public RecommendationsResponse getRecommendations(@AuthenticationPrincipal Jwt jwt) {
+    public RecommendationsResponse getRecommendations(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestParam(defaultValue = "ko") String language
+    ) {
         // GET /api/tour/** is permitAll, so unauthenticated requests reach here with a null principal.
         if (jwt == null) {
             throw new CustomException(ErrorCode.UNAUTHENTICATED);
         }
-        return recommendationService.getRecommendations(jwt.getSubject());
+        return recommendationService.getRecommendations(jwt.getSubject(), language);
     }
 
     @GetMapping("/areas")
@@ -71,9 +75,10 @@ public class TourController {
             @RequestParam(required = false) String contentTypeId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "A") String arrange
+            @RequestParam(defaultValue = "A") String arrange,
+            @RequestParam(defaultValue = "ko") String language
     ) {
-        return tourService.getContents(
+        return tourService.getContents(TourLanguageResolver.toService(language),
                 keyword, areaCode, sigunguCode, contentTypeId, page, size, arrange);
     }
 
@@ -93,8 +98,11 @@ public class TourController {
 
     @GetMapping("/contents/{contentId}")
     @Operation(summary = "관광 콘텐츠 상세 및 이미지 조회")
-    public ContentDetail getContentDetail(@PathVariable String contentId) {
-        return tourService.getContentDetail(contentId);
+    public ContentDetail getContentDetail(
+            @PathVariable String contentId,
+            @RequestParam(defaultValue = "ko") String language
+    ) {
+        return tourService.getContentDetail(TourLanguageResolver.toService(language), contentId);
     }
 
     @GetMapping("/festivals")

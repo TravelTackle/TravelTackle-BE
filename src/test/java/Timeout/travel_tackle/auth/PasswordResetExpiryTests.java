@@ -36,7 +36,7 @@ class PasswordResetExpiryTests {
     @Test
     void expiredCodeIsRejected() {
         String email = "expiry-user@example.com";
-        emailVerificationService.requestCode(email);
+        emailVerificationService.requestCode(email, "ko");
         emailVerificationService.confirmCode(email, mailSender.codeFor(email));
         signupService.signup(new SignupRequest(email, "password123!", "만료 테스트", "KR"));
 
@@ -64,12 +64,12 @@ class PasswordResetExpiryTests {
         private final Map<String, String> codes = new ConcurrentHashMap<>();
 
         @Override
-        public void sendVerificationCode(String email, String code) {
+        public void sendVerificationCode(String email, String code, String language) {
             codes.put(email, code);
         }
 
         @Override
-        public void sendPasswordResetCode(String email, String code) {
+        public void sendPasswordResetCode(String email, String code, String language) {
             codes.put(email, code);
         }
 

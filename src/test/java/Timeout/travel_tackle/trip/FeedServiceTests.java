@@ -277,7 +277,7 @@ class FeedServiceTests {
         // 모든 일차에 일정이 있어야 공개할 수 있다
         UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(owner, "item-" + title, title, null, "1", null, null, null, null));
+                new CartItem(owner, "item-" + title, "KorService2", title, null, "1", null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, dayId, new AddTripItemRequest(cartItem.getId(), null, null));
         tripService.publishTrip(owner.getId(), tripId);
         entityManager.flush();
@@ -294,7 +294,7 @@ class FeedServiceTests {
         TripDetailResponse detail = tripService.getTripDetail(owner.getId(), tripId);
         UUID dayId = detail.days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(owner, "item-" + placeName, placeName, null, "1", null, null, null, null));
+                new CartItem(owner, "item-" + placeName, "KorService2", placeName, null, "1", null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, dayId,
                 new AddTripItemRequest(cartItem.getId(), null, null));
         tripService.publishTrip(owner.getId(), tripId);
@@ -309,7 +309,7 @@ class FeedServiceTests {
         UUID tripId = tripService.createTrip(owner.getId(), new CreateTripRequest(title, date, date)).id();
         UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(owner, "item-" + title, title, null, "1", null, null, null, null));
+                new CartItem(owner, "item-" + title, "KorService2", title, null, "1", null, null, null, null));
         UUID itemId = tripService.addTripItem(owner.getId(), tripId, dayId,
                 new AddTripItemRequest(cartItem.getId(), null, null)).id();
         tripService.publishTrip(owner.getId(), tripId);
@@ -325,7 +325,7 @@ class FeedServiceTests {
     private void addItemWithAddress(UUID tripId, String address) {
         UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(owner, "item-" + UUID.randomUUID(), "장소", null, "1", null, null, null, null));
+                new CartItem(owner, "item-" + UUID.randomUUID(), "KorService2", "장소", null, "1", null, null, null, null));
         UUID itemId = tripService.addTripItem(owner.getId(), tripId, dayId,
                 new AddTripItemRequest(cartItem.getId(), null, null)).id();
         entityManager.flush();

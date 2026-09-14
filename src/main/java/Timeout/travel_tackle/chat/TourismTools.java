@@ -3,6 +3,7 @@ package Timeout.travel_tackle.chat;
 import Timeout.travel_tackle.global.exception.CustomException;
 import Timeout.travel_tackle.tour.dto.TourDtos.ContentSummary;
 import Timeout.travel_tackle.tour.dto.TourDtos.Festival;
+import Timeout.travel_tackle.tour.service.TourLanguageResolver;
 import Timeout.travel_tackle.tour.service.TourService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,7 +38,7 @@ public class TourismTools {
             @ToolParam(required = false, description="특정 장소명으로 찾을 때만(예: '경복궁'). 일반 추천엔 비움") String keyword,
             @ToolParam(required = false, description="응답 언어 코드. ko en ja zh zh-tw de fr es ru. 비우면 한국어") String language
     ) {
-        String service = toService(language);
+        String service = TourLanguageResolver.toService(language);
         String region = regionDigits(lDongRegnCd);
         Category cat = toCategory(category);
         try {
@@ -77,7 +78,7 @@ public class TourismTools {
         try {
             LocalDate startOfMonth = LocalDate.now().withDayOfMonth(1);
             List<Festival> festivals = tourService.getFestivalsInLanguage(
-                    toService(language), startOfMonth, null, regionDigits(lDongRegnCd), RESULT_SIZE
+                    TourLanguageResolver.toService(language), startOfMonth, null, regionDigits(lDongRegnCd), RESULT_SIZE
             );
             log.info("[TOOL] searchFestivals region={} lang={} -> {} festivals",
                     lDongRegnCd, language, festivals.size());
@@ -89,25 +90,6 @@ public class TourismTools {
     }
 
     // --- 내부 헬퍼 ---
-
-    /** 대화 언어 코드 → TourAPI 언어별 서비스. 한국어가 기본. */
-    private String toService(String language) {
-        if (!StringUtils.hasText(language)) {
-            return "KorService2";
-        }
-        return switch (language.trim().toLowerCase()) {
-            case "ko", "kr", "ko-kr", "kor" -> "KorService2";
-            case "en", "eng", "english" -> "EngService2";
-            case "ja", "jp", "jpn" -> "JpnService2";
-            case "zh", "zh-cn", "zh-hans", "chs" -> "ChsService2";
-            case "zh-tw", "zh-hant", "cht" -> "ChtService2";
-            case "de", "ger" -> "GerService2";
-            case "fr", "fre" -> "FreService2";
-            case "es", "spn" -> "SpnService2";
-            case "ru", "rus" -> "RusService2";
-            default -> "KorService2";
-        };
-    }
 
     /** 분류 → lclsSystm(분류체계) 코드. 모든 언어 서비스 공통이라 contentTypeId 대신 이걸로 필터한다. */
     private record Category(String lclsSystm1, String lclsSystm2) {

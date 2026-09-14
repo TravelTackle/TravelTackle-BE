@@ -149,7 +149,7 @@ class PasswordChangeTests {
     }
 
     private void signUpLocalUser(String email, String password, String name) {
-        emailVerificationService.requestCode(email);
+        emailVerificationService.requestCode(email, "ko");
         emailVerificationService.confirmCode(email, mailSender.codeFor(email));
         signupService.signup(new SignupRequest(email, password, name, "KR"));
     }
@@ -177,12 +177,12 @@ class PasswordChangeTests {
         private final Map<String, String> codes = new ConcurrentHashMap<>();
 
         @Override
-        public void sendVerificationCode(String email, String code) {
+        public void sendVerificationCode(String email, String code, String language) {
             codes.put(email, code);
         }
 
         @Override
-        public void sendPasswordResetCode(String email, String code) {
+        public void sendPasswordResetCode(String email, String code, String language) {
             codes.put(email, code);
         }
 

@@ -11,6 +11,8 @@ public interface CartItemRepository extends JpaRepository<CartItem, UUID> {
 
     boolean existsByUserIdAndTourApiContentId(UUID userId, String tourApiContentId);
 
+    boolean existsByUserIdAndTourApiContentIdAndTourApiService(UUID userId, String tourApiContentId, String tourApiService);
+
     List<CartItem> findAllByUserIdOrderByAddedAtDesc(UUID userId);
 
     Optional<CartItem> findByIdAndUserId(UUID id, UUID userId);

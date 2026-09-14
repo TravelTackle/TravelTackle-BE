@@ -32,7 +32,7 @@ public class EmailVerificationService {
     private long expirationMinutes;
 
     @Transactional
-    public void requestCode(String rawEmail) {
+    public void requestCode(String rawEmail, String language) {
         String email = emailNormalizer.normalize(rawEmail);
         if (userRepository.existsByEmail(email)) {
             throw new CustomException(ErrorCode.EMAIL_ALREADY_EXISTS);
@@ -48,7 +48,7 @@ public class EmailVerificationService {
                 now.plusMinutes(expirationMinutes)
         );
         emailVerificationRepository.save(verification);
-        verificationMailSender.sendVerificationCode(email, code);
+        verificationMailSender.sendVerificationCode(email, code, language);
     }
 
     @Transactional

@@ -46,7 +46,7 @@ class TourServiceTests {
                   "mapy": "37.578822"
                 }
                 """);
-        when(tourApiClient.getAreaContents("1", "23", "12", 1, 20, "A"))
+        when(tourApiClient.getAreaContents("KorService2", "1", "23", "12", 1, 20, "A"))
                 .thenReturn(new TourApiResult(List.of(item), 1, 20, 1));
 
         var result = tourService.getContents(null, "1", "23", "12", 1, 20, "A");
@@ -59,13 +59,13 @@ class TourServiceTests {
 
     @Test
     void keywordUsesKeywordSearchEndpoint() {
-        when(tourApiClient.searchContents("한류", null, null, null, 1, 10, "A"))
+        when(tourApiClient.searchContents("KorService2", "한류", null, null, null, 1, 10, "A"))
                 .thenReturn(new TourApiResult(List.of(), 1, 10, 0));
 
         tourService.getContents(" 한류 ", null, null, null, 1, 10, "A");
 
-        verify(tourApiClient).searchContents("한류", null, null, null, 1, 10, "A");
-        verify(tourApiClient, never()).getAreaContents(any(), any(), any(), anyInt(), anyInt(), any());
+        verify(tourApiClient).searchContents("KorService2", "한류", null, null, null, 1, 10, "A");
+        verify(tourApiClient, never()).getAreaContents(any(), any(), any(), any(), anyInt(), anyInt(), any());
     }
 
     @Test
@@ -83,9 +83,9 @@ class TourServiceTests {
         JsonNode image = objectMapper.readTree("""
                 {"originimgurl":"https://example.com/original.jpg","cpyrhtDivCd":"Type1"}
                 """);
-        when(tourApiClient.getCommonDetail("125266"))
+        when(tourApiClient.getCommonDetail("KorService2", "125266"))
                 .thenReturn(new TourApiResult(List.of(detail), 1, 1, 1));
-        when(tourApiClient.getImages("125266"))
+        when(tourApiClient.getImages("KorService2", "125266"))
                 .thenReturn(new TourApiResult(List.of(image), 1, 30, 1));
 
         var result = tourService.getContentDetail("125266");

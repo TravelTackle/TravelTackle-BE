@@ -1,11 +1,9 @@
 package Timeout.travel_tackle.global.exception;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 
 @Getter
-@RequiredArgsConstructor
 public enum ErrorCode {
     //Trip에 관련 예외
     INVALID_TRIP_DATE_RANGE(HttpStatus.BAD_REQUEST, "TRIP_001", "여행 종료일은 시작일보다 빠를 수 없습니다."),
@@ -34,10 +32,10 @@ public enum ErrorCode {
     PUBLISHED_TRIP_DATES_LOCKED(HttpStatus.BAD_REQUEST, "TRIP_024", "공개된 계획은 날짜를 변경할 수 없습니다. 먼저 비공개로 전환해 주세요."),
 
     //Auth에 관련 예외
-    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "AUTH_001", "이미 가입된 이메일입니다."),
+    EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "AUTH_001", "이미 가입된 이메일입니다.", "This email is already registered."),
     EMAIL_VERIFICATION_NOT_FOUND(HttpStatus.BAD_REQUEST, "AUTH_002", "이메일 인증 요청을 찾을 수 없습니다."),
-    INVALID_EMAIL_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "AUTH_003", "이메일 인증번호가 올바르지 않습니다."),
-    EMAIL_VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "AUTH_004", "이메일 인증번호가 만료되었습니다."),
+    INVALID_EMAIL_VERIFICATION_CODE(HttpStatus.BAD_REQUEST, "AUTH_003", "이메일 인증번호가 올바르지 않습니다.", "The verification code is incorrect."),
+    EMAIL_VERIFICATION_EXPIRED(HttpStatus.BAD_REQUEST, "AUTH_004", "이메일 인증번호가 만료되었습니다.", "The verification code has expired."),
     EMAIL_NOT_VERIFIED(HttpStatus.BAD_REQUEST, "AUTH_005", "이메일 인증이 완료되지 않았습니다."),
     EMAIL_VERIFICATION_ALREADY_USED(HttpStatus.BAD_REQUEST, "AUTH_006", "이미 사용된 이메일 인증입니다."),
     EMAIL_VERIFICATION_RATE_LIMITED(HttpStatus.TOO_MANY_REQUESTS, "AUTH_007", "이메일 인증 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."),
@@ -46,7 +44,7 @@ public enum ErrorCode {
     SOCIAL_ACCOUNT_LINK_REQUIRED(HttpStatus.CONFLICT, "AUTH_010", "동일한 이메일 계정이 존재합니다. 로그인 후 소셜 계정을 연결해 주세요."),
     UNSUPPORTED_AUTH_PROVIDER(HttpStatus.BAD_REQUEST, "AUTH_011", "지원하지 않는 소셜 로그인 제공자입니다."),
     SOCIAL_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "AUTH_012", "소셜 로그인에 실패했습니다."),
-    UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "AUTH_013", "로그인이 필요합니다."),
+    UNAUTHENTICATED(HttpStatus.UNAUTHORIZED, "AUTH_013", "로그인이 필요합니다.", "Please sign in."),
     INVALID_LOGIN_CREDENTIALS(HttpStatus.UNAUTHORIZED, "AUTH_014", "이메일 또는 비밀번호가 올바르지 않습니다."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_015", "유효하지 않은 리프레시 토큰입니다."),
     EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_016", "만료된 리프레시 토큰입니다."),
@@ -63,11 +61,11 @@ public enum ErrorCode {
 
     //Tour API에 관련 예외
     TOUR_API_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "TOUR_001", "관광 API 키가 설정되지 않았습니다."),
-    TOUR_API_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "TOUR_002", "관광 정보를 불러오지 못했습니다."),
-    TOUR_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "TOUR_003", "관광 콘텐츠를 찾을 수 없습니다."),
-    INVALID_TOUR_SEARCH_CONDITION(HttpStatus.BAD_REQUEST, "TOUR_004", "관광 검색 조건이 올바르지 않습니다."),
-    CART_ITEM_ALREADY_EXISTS(HttpStatus.CONFLICT, "CART_001", "이미 장바구니에 담긴 관광 콘텐츠입니다."),
-    CART_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "CART_002", "장바구니 항목을 찾을 수 없습니다."),
+    TOUR_API_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE, "TOUR_002", "관광 정보를 불러오지 못했습니다.", "Unable to load tour information right now."),
+    TOUR_CONTENT_NOT_FOUND(HttpStatus.NOT_FOUND, "TOUR_003", "관광 콘텐츠를 찾을 수 없습니다.", "Tour content not found."),
+    INVALID_TOUR_SEARCH_CONDITION(HttpStatus.BAD_REQUEST, "TOUR_004", "관광 검색 조건이 올바르지 않습니다.", "Invalid tour search condition."),
+    CART_ITEM_ALREADY_EXISTS(HttpStatus.CONFLICT, "CART_001", "이미 장바구니에 담긴 관광 콘텐츠입니다.", "This item is already in your cart."),
+    CART_ITEM_NOT_FOUND(HttpStatus.NOT_FOUND, "CART_002", "장바구니 항목을 찾을 수 없습니다.", "Cart item not found."),
 
     //Preference에 관련 예외
     PREFERENCE_ALREADY_EXISTS(HttpStatus.CONFLICT, "PREF_001", "이미 선호도가 등록되어 있습니다."),
@@ -79,10 +77,23 @@ public enum ErrorCode {
     IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "IMAGE_003", "이미지는 파일당 10MB, 요청 전체 50MB 이하여야 합니다."),
     IMAGE_UPLOAD_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "IMAGE_004", "이미지 저장소에 업로드하지 못했습니다. 저장소 설정(버킷·리전·자격 증명)을 확인해 주세요."),
 
-    INVALID_INPUT(HttpStatus.BAD_REQUEST, "COMMON_002", "요청 값이 올바르지 않습니다."),
-    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_001", "서버 내부 오류가 발생했습니다.");
+    INVALID_INPUT(HttpStatus.BAD_REQUEST, "COMMON_002", "요청 값이 올바르지 않습니다.", "The request is invalid."),
+    INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_001", "서버 내부 오류가 발생했습니다.", "An internal server error occurred.");
 
     private final HttpStatus status;
     private final String code;
     private final String message;
+    // 여행자가 실제로 마주칠 수 있는 코드 ~10개에 한해서만 채움(§다른 언어 추가 시 확장성) — 없으면 message(한국어) 그대로 노출.
+    private final String messageEn;
+
+    ErrorCode(HttpStatus status, String code, String message) {
+        this(status, code, message, null);
+    }
+
+    ErrorCode(HttpStatus status, String code, String message, String messageEn) {
+        this.status = status;
+        this.code = code;
+        this.message = message;
+        this.messageEn = messageEn;
+    }
 }

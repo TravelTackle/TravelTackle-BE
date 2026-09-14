@@ -77,7 +77,7 @@ class AccountDeletionServiceTests {
     void deleteAccountRemovesOwnDataAndAnonymizesFeedbackLeftOnOthersTrips() {
         // owner 소유 데이터: 여행계획(공개), 장바구니, 선호도, 남의 여행 저장
         UUID ownerTripId = createPublishedTrip(owner, "owner의 여행");
-        cartItemRepository.save(new CartItem(owner, "content-1", "장소", null, "1", null, null, null, null));
+        cartItemRepository.save(new CartItem(owner, "content-1", "KorService2", "장소", null, "1", null, null, null, null));
         userPreferenceService.create(owner.getId().toString(), new PreferenceRequest(
                 TravelStyle.RELAXED, BudgetLevel.LOW, Set.of(InterestTag.FOOD), Set.of(PreferredRegion.SEOUL)));
 
@@ -125,7 +125,7 @@ class AccountDeletionServiceTests {
 
         // bystander 소유: 자기 여행계획, 장바구니, 선호도 + owner 여행을 저장(복사)
         UUID bystanderOwnTripId = createPublishedTrip(bystander, "제3자 본인 여행");
-        cartItemRepository.save(new CartItem(bystander, "content-2", "제3자 장소", null, "1", null, null, null, null));
+        cartItemRepository.save(new CartItem(bystander, "content-2", "KorService2", "제3자 장소", null, "1", null, null, null, null));
         userPreferenceService.create(bystander.getId().toString(), new PreferenceRequest(
                 TravelStyle.MODERATE, BudgetLevel.HIGH, Set.of(InterestTag.HISTORY), Set.of(PreferredRegion.BUSAN)));
         SavedTripResponse scrap = savedTripService.save(bystander.getId(), ownerTripId, FeedItemType.PLAN);
@@ -158,7 +158,7 @@ class AccountDeletionServiceTests {
         // 모든 일차에 일정이 있어야 공개할 수 있다
         UUID dayId = tripService.getTripDetail(user.getId(), tripId).days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(user, "item-" + title, title, null, "1", null, null, null, null));
+                new CartItem(user, "item-" + title, "KorService2", title, null, "1", null, null, null, null));
         tripService.addTripItem(user.getId(), tripId, dayId, new AddTripItemRequest(cartItem.getId(), null, null));
         cartItemRepository.delete(cartItem); // 장바구니 개수 검증에 섞이지 않게 정리 (일정은 스냅샷이라 영향 없음)
         tripService.publishTrip(user.getId(), tripId);

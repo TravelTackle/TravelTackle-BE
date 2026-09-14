@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 public record EmailVerificationRequest(
         @NotBlank
         @Email
-        String email
+        String email,
+        String language
 ) {
 }

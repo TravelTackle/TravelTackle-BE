@@ -54,8 +54,22 @@ public class TourService {
                 .toList();
     }
 
+    public Page<ContentSummary> getContents(
+            String keyword,
+            String areaCode,
+            String sigunguCode,
+            String contentTypeId,
+            int page,
+            int size,
+            String arrange
+    ) {
+        return getContents(TourLanguageResolver.DEFAULT_SERVICE, keyword, areaCode, sigunguCode, contentTypeId, page, size, arrange);
+    }
+
+    /** 언어별 서비스로 지역/키워드 브라우징. */
     @Cacheable(cacheNames = "tourContents")
     public Page<ContentSummary> getContents(
+            String service,
             String keyword,
             String areaCode,
             String sigunguCode,
@@ -67,9 +81,9 @@ public class TourService {
         validatePage(page, size);
         String normalizedArrange = normalizeArrange(arrange, "A", false);
         TourApiResult result = StringUtils.hasText(keyword)
-                ? tourApiClient.searchContents(keyword.trim(), areaCode, sigunguCode,
+                ? tourApiClient.searchContents(service, keyword.trim(), areaCode, sigunguCode,
                 contentTypeId, page, size, normalizedArrange)
-                : tourApiClient.getAreaContents(areaCode, sigunguCode,
+                : tourApiClient.getAreaContents(service, areaCode, sigunguCode,
                 contentTypeId, page, size, normalizedArrange);
         return toPage(result);
     }
@@ -93,9 +107,18 @@ public class TourService {
                 longitude, latitude, radius, contentTypeId, page, size));
     }
 
-    @Cacheable(cacheNames = "tourDetails", key = "#contentId")
     public ContentDetail getContentDetail(String contentId) {
-        TourApiResult commonResult = tourApiClient.getCommonDetail(contentId);
+        return getContentDetail(TourLanguageResolver.DEFAULT_SERVICE, contentId);
+    }
+
+    /**
+     * 언어별 서비스로 상세 조회. contentId는 언어 서비스마다 다른 값을 가리키므로
+     * 캐시 키에 service를 반드시 포함한다 — 안 그러면 서로 다른 서비스가 우연히 같은
+     * contentId 문자열을 쓸 때 잘못된 언어의 데이터가 캐시에서 반환될 수 있다.
+     */
+    @Cacheable(cacheNames = "tourDetails", key = "#service + ':' + #contentId")
+    public ContentDetail getContentDetail(String service, String contentId) {
+        TourApiResult commonResult = tourApiClient.getCommonDetail(service, contentId);
         if (commonResult.items().isEmpty()) {
             throw new CustomException(ErrorCode.TOUR_CONTENT_NOT_FOUND);
         }
@@ -103,7 +126,7 @@ public class TourService {
         JsonNode item = commonResult.items().getFirst();
         List<Image> images;
         try {
-            images = tourApiClient.getImages(contentId).items().stream()
+            images = tourApiClient.getImages(service, contentId).items().stream()
                     .map(this::toImage)
                     .toList();
         } catch (CustomException e) {

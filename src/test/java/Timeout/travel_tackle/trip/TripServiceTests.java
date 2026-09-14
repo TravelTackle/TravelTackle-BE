@@ -231,7 +231,7 @@ class TripServiceTests {
     }
 
     private CartItem saveCartItem(User owner, String contentId, String title, String imageUrl) {
-        return cartItemRepository.save(new CartItem(owner, contentId, title, imageUrl, "1", null, null, null, null));
+        return cartItemRepository.save(new CartItem(owner, contentId, "KorService2", title, imageUrl, "1", null, null, null, null));
     }
 
     private void assertItems(List<TripItemResponse> items, List<String> expectedIds) {

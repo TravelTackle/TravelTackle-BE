@@ -54,7 +54,7 @@ class JwtAuthenticationFlowTests {
     void loginMeRefreshAndLogoutUseHttpOnlyCookies() throws Exception {
         String email = "jwt-user@example.com";
         String password = "password123!";
-        emailVerificationService.requestCode(email);
+        emailVerificationService.requestCode(email, "ko");
         emailVerificationService.confirmCode(email, mailSender.codeFor(email));
         signupService.signup(new SignupRequest(email, password, "JWT 사용자", "KR"));
 
@@ -136,12 +136,12 @@ class JwtAuthenticationFlowTests {
         private final Map<String, String> codes = new ConcurrentHashMap<>();
 
         @Override
-        public void sendVerificationCode(String email, String code) {
+        public void sendVerificationCode(String email, String code, String language) {
             codes.put(email, code);
         }
 
         @Override
-        public void sendPasswordResetCode(String email, String code) {
+        public void sendPasswordResetCode(String email, String code, String language) {
             codes.put(email, code);
         }
 
