@@ -116,7 +116,7 @@ class NotificationApiTests {
         LocalDate date = LocalDate.of(2026, 7, 1);
         UUID tripId = tripService.createTrip(owner.getId(), new CreateTripRequest("여행", date, date)).id();
         UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
-        CartItem cart = cartItemRepository.save(new CartItem(owner, "1", "장소", null, "1", null, null, null, null));
+        CartItem cart = cartItemRepository.save(new CartItem(owner, "1", "KorService2", "장소", null, "1", null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, dayId, new AddTripItemRequest(cart.getId(), null, null));
         tripService.publishTrip(owner.getId(), tripId);
         return tripId;

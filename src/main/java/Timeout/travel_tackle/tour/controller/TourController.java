@@ -51,8 +51,11 @@ public class TourController {
 
     @GetMapping("/areas")
     @Operation(summary = "지역 또는 시군구 코드 조회")
-    public List<Area> getAreas(@RequestParam(required = false) String areaCode) {
-        return tourService.getAreas(areaCode);
+    public List<Area> getAreas(
+            @RequestParam(required = false) String areaCode,
+            @RequestParam(defaultValue = "ko") String language
+    ) {
+        return tourService.getAreas(TourLanguageResolver.toService(language), areaCode);
     }
 
     @GetMapping("/categories")
@@ -90,9 +93,10 @@ public class TourController {
             @RequestParam(defaultValue = "5000") int radius,
             @RequestParam(required = false) String contentTypeId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "ko") String language
     ) {
-        return tourService.getNearbyContents(
+        return tourService.getNearbyContents(TourLanguageResolver.toService(language),
                 longitude, latitude, radius, contentTypeId, page, size);
     }
 
@@ -113,9 +117,11 @@ public class TourController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             @RequestParam(required = false) String lDongRegnCd,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "ko") String language
     ) {
-        return tourService.getFestivals(startDate, endDate, lDongRegnCd, page, size);
+        return tourService.getFestivals(TourLanguageResolver.toService(language),
+                startDate, endDate, lDongRegnCd, page, size);
     }
 
     @GetMapping("/stays")
@@ -124,8 +130,9 @@ public class TourController {
             @RequestParam(required = false) String areaCode,
             @RequestParam(required = false) String sigunguCode,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "ko") String language
     ) {
-        return tourService.getStays(areaCode, sigunguCode, page, size);
+        return tourService.getStays(TourLanguageResolver.toService(language), areaCode, sigunguCode, page, size);
     }
 }

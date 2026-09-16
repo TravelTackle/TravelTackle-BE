@@ -42,7 +42,12 @@ public class TourApiClient {
     }
 
     public TourApiResult getAreas(String areaCode) {
-        return request("areaCode2", builder -> {
+        return getAreas(DEFAULT_SERVICE, areaCode);
+    }
+
+    /** 언어별 서비스로 시/도 또는 시/군/구 코드 조회. */
+    public TourApiResult getAreas(String service, String areaCode) {
+        return request(service, "areaCode2", builder -> {
             addIfPresent(builder, "areaCode", areaCode);
             builder.queryParam("pageNo", 1).queryParam("numOfRows", 100);
         });
@@ -136,14 +141,27 @@ public class TourApiClient {
             int page,
             int size
     ) {
-        return request("locationBasedList2", builder -> {
+        return getNearbyContents(DEFAULT_SERVICE, longitude, latitude, radius, contentTypeId, page, size);
+    }
+
+    /** 언어별 서비스로 좌표 기반 주변 콘텐츠 조회. */
+    public TourApiResult getNearbyContents(
+            String service,
+            double longitude,
+            double latitude,
+            int radius,
+            String contentTypeId,
+            int page,
+            int size
+    ) {
+        return request(service, "locationBasedList2", builder -> {
             builder.queryParam("mapX", longitude)
                     .queryParam("mapY", latitude)
                     .queryParam("radius", radius)
                     .queryParam("pageNo", page)
                     .queryParam("numOfRows", size)
                     .queryParam("arrange", "E");
-            addIfPresent(builder, "contentTypeId", contentTypeId);
+            addContentTypeIfSupported(builder, service, contentTypeId);
         });
     }
 
@@ -241,7 +259,18 @@ public class TourApiClient {
             int page,
             int size
     ) {
-        return request("searchStay2", builder -> {
+        return getStays(DEFAULT_SERVICE, areaCode, sigunguCode, page, size);
+    }
+
+    /** 언어별 서비스로 숙박 조회. */
+    public TourApiResult getStays(
+            String service,
+            String areaCode,
+            String sigunguCode,
+            int page,
+            int size
+    ) {
+        return request(service, "searchStay2", builder -> {
             builder.queryParam("pageNo", page)
                     .queryParam("numOfRows", size)
                     .queryParam("arrange", "A");

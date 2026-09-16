@@ -34,9 +34,14 @@ public class TourService {
 
     private final TourApiClient tourApiClient;
 
-    @Cacheable(cacheNames = "tourAreas", key = "#areaCode ?: 'root'")
     public List<Area> getAreas(String areaCode) {
-        return tourApiClient.getAreas(areaCode).items().stream()
+        return getAreas(TourLanguageResolver.DEFAULT_SERVICE, areaCode);
+    }
+
+    /** 언어별 서비스로 시/도 또는 시/군/구 코드 조회. */
+    @Cacheable(cacheNames = "tourAreas", key = "#service + ':' + (#areaCode ?: 'root')")
+    public List<Area> getAreas(String service, String areaCode) {
+        return tourApiClient.getAreas(service, areaCode).items().stream()
                 .map(item -> new Area(text(item, "code"), text(item, "name")))
                 .toList();
     }
@@ -88,8 +93,21 @@ public class TourService {
         return toPage(result);
     }
 
+    public Page<ContentSummary> getNearbyContents(
+            double longitude,
+            double latitude,
+            int radius,
+            String contentTypeId,
+            int page,
+            int size
+    ) {
+        return getNearbyContents(TourLanguageResolver.DEFAULT_SERVICE, longitude, latitude, radius, contentTypeId, page, size);
+    }
+
+    /** 언어별 서비스로 좌표 기반 주변 콘텐츠 조회. */
     @Cacheable(cacheNames = "tourNearby")
     public Page<ContentSummary> getNearbyContents(
+            String service,
             double longitude,
             double latitude,
             int radius,
@@ -104,7 +122,7 @@ public class TourService {
             throw new CustomException(ErrorCode.INVALID_TOUR_SEARCH_CONDITION);
         }
         return toPage(tourApiClient.getNearbyContents(
-                longitude, latitude, radius, contentTypeId, page, size));
+                service, longitude, latitude, radius, contentTypeId, page, size));
     }
 
     public ContentDetail getContentDetail(String contentId) {
@@ -158,8 +176,20 @@ public class TourService {
         );
     }
 
+    public Page<Festival> getFestivals(
+            LocalDate startDate,
+            LocalDate endDate,
+            String lDongRegnCd,
+            int page,
+            int size
+    ) {
+        return getFestivals(TourLanguageResolver.DEFAULT_SERVICE, startDate, endDate, lDongRegnCd, page, size);
+    }
+
+    /** 언어별 서비스로 기간별 축제·행사 조회. */
     @Cacheable(cacheNames = "tourFestivals")
     public Page<Festival> getFestivals(
+            String service,
             LocalDate startDate,
             LocalDate endDate,
             String lDongRegnCd,
@@ -172,6 +202,7 @@ public class TourService {
         }
 
         TourApiResult result = tourApiClient.getFestivals(
+                service,
                 formatDate(startDate),
                 endDate == null ? null : formatDate(endDate),
                 lDongRegnCd,
@@ -186,15 +217,26 @@ public class TourService {
         );
     }
 
-    @Cacheable(cacheNames = "tourStays")
     public Page<ContentSummary> getStays(
             String areaCode,
             String sigunguCode,
             int page,
             int size
     ) {
+        return getStays(TourLanguageResolver.DEFAULT_SERVICE, areaCode, sigunguCode, page, size);
+    }
+
+    /** 언어별 서비스로 숙박 조회. */
+    @Cacheable(cacheNames = "tourStays")
+    public Page<ContentSummary> getStays(
+            String service,
+            String areaCode,
+            String sigunguCode,
+            int page,
+            int size
+    ) {
         validatePage(page, size);
-        return toPage(tourApiClient.getStays(areaCode, sigunguCode, page, size));
+        return toPage(tourApiClient.getStays(service, areaCode, sigunguCode, page, size));
     }
 
     @Cacheable(cacheNames = "tourRecommended")
