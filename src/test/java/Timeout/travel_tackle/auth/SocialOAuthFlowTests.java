@@ -1,6 +1,9 @@
 package Timeout.travel_tackle.auth;
 
 import Timeout.travel_tackle.auth.repository.UserAuthProviderRepository;
+import Timeout.travel_tackle.global.exception.ErrorCode;
+import Timeout.travel_tackle.global.exception.CustomException;
+import Timeout.travel_tackle.auth.repository.UserRepository;
 import Timeout.travel_tackle.auth.social.service.SocialLoginService;
 import Timeout.travel_tackle.entity.Enum.AuthProvider;
 import Timeout.travel_tackle.entity.User;
@@ -39,6 +42,7 @@ class SocialOAuthFlowTests {
     @Autowired ClientRegistrationRepository clientRegistrationRepository;
     @Autowired SocialLoginService socialLoginService;
     @Autowired UserAuthProviderRepository userAuthProviderRepository;
+    @Autowired UserRepository userRepository;
     @Autowired EntityManager entityManager;
 
     @Test
@@ -92,6 +96,36 @@ class SocialOAuthFlowTests {
         entityManager.clear();
         User existingUser = socialLoginService.login(AuthProvider.KAKAO, attributes);
         assertTrue(Hibernate.isInitialized(existingUser));
+    }
+
+    @Test
+    void googleLoginLinksToExistingLocalAccountWithSameVerifiedEmail() {
+        User local = userRepository.save(User.localUser("linked@example.com", "hash", "이메일가입자", "KR"));
+
+        User loggedIn = socialLoginService.login(AuthProvider.GOOGLE, Map.of(
+                "sub", "google-user-2",
+                "email", "Linked@Example.com",
+                "name", "구글 이름",
+                "email_verified", true
+        ));
+
+        assertEquals(local.getId(), loggedIn.getId()); // 새 계정을 만들지 않고 기존 계정으로 로그인
+        assertEquals("이메일가입자", loggedIn.getName()); // 기존 프로필 유지
+        assertTrue(userAuthProviderRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, "google-user-2").isPresent());
+
+        // 두 번째 로그인은 연결된 제공자 계정으로 바로 찾는다
+        assertEquals(local.getId(), socialLoginService.login(AuthProvider.GOOGLE, Map.of(
+                "sub", "google-user-2", "email", "linked@example.com", "name", "구글 이름", "email_verified", true)).getId());
+    }
+
+    @Test
+    void googleLoginWithUnverifiedEmailIsRejectedBeforeLinking() {
+        userRepository.save(User.localUser("unverified@example.com", "hash", "이메일가입자", "KR"));
+
+        CustomException ex = assertThrows(CustomException.class, () -> socialLoginService.login(AuthProvider.GOOGLE, Map.of(
+                "sub", "google-user-3", "email", "unverified@example.com", "name", "x", "email_verified", false)));
+        assertEquals(ErrorCode.SOCIAL_EMAIL_NOT_VERIFIED, ex.getErrorCode());
+        assertTrue(userAuthProviderRepository.findByProviderAndProviderUserId(AuthProvider.GOOGLE, "google-user-3").isEmpty());
     }
 
     @Test
