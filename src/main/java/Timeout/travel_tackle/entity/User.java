@@ -53,6 +53,9 @@ public class User {
     @Column(name = "preferred_language")
     private String preferredLanguage = "ko"; //선호 언어 코드 (기기 간 동기화용)
 
+    @Column(name = "profile_image_url", length = 1000)
+    private String profileImageUrl; //S3 에 올린 프로필 사진 읽기 URL (없으면 null)
+
     // 알림 설정 — 값만 저장, 실제 발송 트리거는 아직 미구현
     // ddl-auto update 가 기존 행이 있는 테이블에 NOT NULL 컬럼을 추가할 수 있도록 DB 기본값을 함께 준다
     @ColumnDefault("true")
@@ -112,6 +115,14 @@ public class User {
             throw new CustomException(ErrorCode.INVALID_INPUT);
         }
         this.preferredLanguage = preferredLanguage;
+    }
+
+    public void changeProfileImage(String profileImageUrl) {
+        this.profileImageUrl = profileImageUrl;
+    }
+
+    public void removeProfileImage() {
+        this.profileImageUrl = null;
     }
 
     public void updateNotificationSettings(boolean notifyEmail, boolean notifyFeedback,

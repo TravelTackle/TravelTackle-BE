@@ -17,7 +17,8 @@ public record TripDetailResponse(
         boolean published,
         LocalDateTime createdAt,
         List<TripDayResponse> days,
-        long saveCount
+        long saveCount,
+        String region
 ) {
     public static TripDetailResponse of(Trip trip, List<TripDayResponse> days) {
         return new TripDetailResponse(
@@ -29,11 +30,16 @@ public record TripDetailResponse(
                 trip.isPublished(),
                 trip.getCreatedAt(),
                 days,
-                0L
+                0L,
+                null
         );
     }
 
     public TripDetailResponse withSaveCount(long saveCount) {
-        return new TripDetailResponse(id, title, startDate, endDate, status, published, createdAt, days, saveCount);
+        return new TripDetailResponse(id, title, startDate, endDate, status, published, createdAt, days, saveCount, region);
+    }
+
+    public TripDetailResponse withRegion(String region) {
+        return new TripDetailResponse(id, title, startDate, endDate, status, published, createdAt, days, saveCount, region);
     }
 }

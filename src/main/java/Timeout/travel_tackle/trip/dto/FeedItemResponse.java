@@ -21,11 +21,13 @@ public record FeedItemResponse(
         TripStatus status,
         UUID ownerId,
         String ownerName,
+        String ownerProfileImageUrl,
         String thumbnailUrl,
         long feedbackCount,
         long saveCount,
         UUID savedTripId,
         LocalDateTime createdAt,
+        LocalDateTime updatedAt,
         List<TripDayResponse> days
 ) {
     public static FeedItemResponse ofPlan(
@@ -43,11 +45,13 @@ public record FeedItemResponse(
                 trip.getStatus(),
                 trip.getUser().getId(),
                 trip.getUser().getName(),
+                trip.getUser().getProfileImageUrl(),
                 thumbnailUrl,
                 feedbackCount,
                 saveCount,
                 savedTripId,
                 trip.getCreatedAt(),
+                trip.getUpdatedAt(),
                 days
         );
     }
@@ -67,11 +71,13 @@ public record FeedItemResponse(
                 trip.getStatus(),
                 trip.getUser().getId(),
                 trip.getUser().getName(),
+                trip.getUser().getProfileImageUrl(),
                 thumbnailUrl,
                 feedbackCount,
                 saveCount,
                 savedTripId,
                 record.getCreatedAt(),
+                null,
                 null
         );
     }

@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -96,8 +97,17 @@ class FeedServiceTests {
         FeedItemResponse item = feedService.getFeed(PageRequest.of(0, 10), FeedSort.LATEST).getContent().getFirst();
         assertEquals(owner.getId(), item.ownerId());
         assertEquals("계획자", item.ownerName());
+        assertNull(item.ownerProfileImageUrl());
 
         assertEquals(owner.getId(), feedService.getPublicTripDetail(tripId, null).ownerId());
+
+        // 앞의 clear() 로 owner 가 분리됐으므로 다시 조회한 엔티티에 설정한다
+        userRepository.findById(owner.getId()).orElseThrow().changeProfileImage("https://cdn.test/profiles/o/1.jpg");
+        entityManager.flush();
+        entityManager.clear();
+        assertEquals("https://cdn.test/profiles/o/1.jpg",
+                feedService.getFeed(PageRequest.of(0, 10), FeedSort.LATEST).getContent().getFirst().ownerProfileImageUrl());
+        assertEquals("https://cdn.test/profiles/o/1.jpg", feedService.getPublicTripDetail(tripId, null).ownerProfileImageUrl());
     }
 
     @Test

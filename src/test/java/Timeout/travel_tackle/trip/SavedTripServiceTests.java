@@ -30,6 +30,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,6 +62,7 @@ class SavedTripServiceTests {
 
         assertEquals(originalId, scrap.originalTripId());
         assertEquals("주인", scrap.ownerName());
+        assertNull(scrap.ownerProfileImageUrl());
         assertEquals(null, scrap.copiedTripId());
 
         List<SavedTripResponse> saved = savedTripService.getSavedTrips(viewer.getId());

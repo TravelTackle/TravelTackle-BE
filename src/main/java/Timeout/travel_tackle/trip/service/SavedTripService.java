@@ -21,6 +21,8 @@ import Timeout.travel_tackle.trip.repository.TripPhotoRepository;
 import Timeout.travel_tackle.trip.repository.TripQueryRepository;
 import Timeout.travel_tackle.trip.repository.TripRecordRepository;
 import Timeout.travel_tackle.trip.repository.TripRepository;
+import Timeout.travel_tackle.notification.dto.ScrapNotificationCommand;
+import Timeout.travel_tackle.notification.service.NotificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -44,6 +46,7 @@ public class SavedTripService {
     private final TripFeedbackRepository tripFeedbackRepository;
     private final TripRecordRepository tripRecordRepository;
     private final UserRepository userRepository;
+    private final NotificationService notificationService;
 
     /**
      * 다른 사용자의 공개 여행을 스크랩(찜)한다. 이 시점엔 원본을 복사하지 않는다 —
@@ -67,7 +70,15 @@ public class SavedTripService {
         }
 
         SavedTrip savedTrip = savedTripRepository.save(new SavedTrip(user, original, sourceType));
+        notificationService.notifyScrap(new ScrapNotificationCommand(
+                original.getUser().getId(), user.getId(), user.getName(),
+                original.getId(), original.getTitle(), firstThumbnailOf(original)));
         return toResponse(savedTrip);
+    }
+
+    private String firstThumbnailOf(Trip trip) {
+        return tripPhotoRepository.findThumbnailRowsByTripIds(List.of(trip.getId())).stream()
+                .findFirst().map(row -> (String) row[1]).orElse(null);
     }
 
     /**
@@ -144,22 +155,14 @@ public class SavedTripService {
                     if (savedTrip.getSourceType() == FeedItemType.RECORD && record != null) {
                         TripDetailResponse detail = tripQueryRepository.findDetail(savedTrip.getOriginalTrip());
                         return SavedTripResponse.ofRecord(
-                                savedTrip, record, resolveRegion(detail), thumbnailUrl, feedbackCount, saveCount);
+                                savedTrip, record, RegionLabelResolver.fromTripDetail(detail), thumbnailUrl, feedbackCount, saveCount);
                     }
 
                     TripDetailResponse detail = tripQueryRepository.findDetail(savedTrip.getOriginalTrip());
                     return SavedTripResponse.ofPlan(
-                            savedTrip, resolveRegion(detail), thumbnailUrl, feedbackCount, saveCount, detail.days());
+                            savedTrip, RegionLabelResolver.fromTripDetail(detail), thumbnailUrl, feedbackCount, saveCount, detail.days());
                 })
                 .toList();
-    }
-
-    private String resolveRegion(TripDetailResponse detail) {
-        return detail.days().stream()
-                .flatMap(day -> day.items().stream())
-                .findFirst()
-                .map(item -> RegionLabelResolver.fromAddress(item.address()))
-                .orElse(null);
     }
 
     private Map<UUID, String> resolveThumbnails(List<UUID> tripIds) {

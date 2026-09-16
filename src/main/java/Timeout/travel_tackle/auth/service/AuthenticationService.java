@@ -18,6 +18,8 @@ import Timeout.travel_tackle.global.exception.ErrorCode;
 import Timeout.travel_tackle.global.util.UuidConverter;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import Timeout.travel_tackle.image.service.ImageStorageService;
+import org.springframework.web.multipart.MultipartFile;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -36,6 +38,7 @@ public class AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final AuthCookieService authCookieService;
+    private final ImageStorageService imageStorageService;
     private final EmailNormalizer emailNormalizer;
 
     @Transactional
@@ -83,6 +86,37 @@ public class AuthenticationService {
         }
         if (StringUtils.hasText(request.preferredLanguage())) {
             user.changeLanguage(request.preferredLanguage());
+        }
+        return toResponse(user);
+    }
+
+    /** 프로필 사진 교체. 새 사진을 S3 에 올린 뒤 URL 을 저장하고, 이전 사진은 커밋 후 지운다. */
+    @Transactional
+    public CurrentUserResponse updateProfileImage(String subject, MultipartFile image) {
+        UUID userId = UuidConverter.fromSubject(subject);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHENTICATED));
+
+        String previous = user.getProfileImageUrl();
+        String uploaded = imageStorageService.upload(userId, image, ImageStorageService.Kind.PROFILE);
+        imageStorageService.deleteOnRollback(userId, List.of(uploaded), ImageStorageService.Kind.PROFILE); // DB 반영이 롤백되면 방금 올린 객체를 되돌려 지운다
+        user.changeProfileImage(uploaded);
+        if (previous != null) {
+            imageStorageService.deleteAfterCommit(userId, List.of(previous), ImageStorageService.Kind.PROFILE);
+        }
+        return toResponse(user);
+    }
+
+    @Transactional
+    public CurrentUserResponse removeProfileImage(String subject) {
+        UUID userId = UuidConverter.fromSubject(subject);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHENTICATED));
+
+        String previous = user.getProfileImageUrl();
+        user.removeProfileImage();
+        if (previous != null) {
+            imageStorageService.deleteAfterCommit(userId, List.of(previous), ImageStorageService.Kind.PROFILE);
         }
         return toResponse(user);
     }

@@ -11,6 +11,10 @@ import Timeout.travel_tackle.entity.TripItem;
 import Timeout.travel_tackle.entity.User;
 import Timeout.travel_tackle.global.exception.CustomException;
 import Timeout.travel_tackle.global.exception.ErrorCode;
+import Timeout.travel_tackle.entity.Enum.NotificationTarget;
+import Timeout.travel_tackle.notification.dto.FeedbackNotificationCommand;
+import Timeout.travel_tackle.notification.service.NotificationService;
+import Timeout.travel_tackle.trip.repository.TripPhotoRepository;
 import Timeout.travel_tackle.tour.dto.TourDtos.ContentDetail;
 import Timeout.travel_tackle.tour.service.TourService;
 import Timeout.travel_tackle.trip.dto.CreateFeedbackRequest;
@@ -48,6 +52,8 @@ public class TripFeedbackService {
     private final UserRepository userRepository;
     private final TourService tourService;
     private final CartService cartService;
+    private final TripPhotoRepository tripPhotoRepository;
+    private final NotificationService notificationService;
 
     @Transactional
     public FeedbackResponse create(UUID userId, UUID tripId, CreateFeedbackRequest request) {
@@ -69,8 +75,30 @@ public class TripFeedbackService {
 
         List<TripFeedbackRecommendation> recs = buildRecommendations(feedback, request.recommendations());
         recommendationRepository.saveAll(recs);
+        notificationService.notifyFeedback(toNotificationCommand(trip, author, feedback, tripDay, tripItem));
 
         return toResponse(feedback, recs);
+    }
+
+    private FeedbackNotificationCommand toNotificationCommand(Trip trip, User author, TripFeedback feedback,
+                                                              TripDay tripDay, TripItem tripItem) {
+        NotificationTarget target = NotificationTarget.TRIP;
+        Integer dayNumber = null; // int 와 null 을 삼항으로 섞으면 언박싱 NPE 가 나므로 분기로 나눈다
+        if (tripItem != null) {
+            target = NotificationTarget.ITEM;
+            dayNumber = tripItem.getTripDay().getDayNumber();
+        } else if (tripDay != null) {
+            target = NotificationTarget.DAY;
+            dayNumber = tripDay.getDayNumber();
+        }
+        String thumbnailUrl = tripPhotoRepository.findThumbnailRowsByTripIds(List.of(trip.getId())).stream()
+                .findFirst().map(row -> (String) row[1]).orElse(null);
+        return new FeedbackNotificationCommand(
+                trip.getUser().getId(), author.getId(), author.getName(),
+                trip.getId(), trip.getTitle(), thumbnailUrl,
+                feedback.getId(), target, dayNumber,
+                tripItem != null ? tripItem.getCachedTitle() : null,
+                feedback.getContent());
     }
 
     @Transactional

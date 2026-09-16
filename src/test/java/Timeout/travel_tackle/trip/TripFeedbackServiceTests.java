@@ -99,6 +99,15 @@ class TripFeedbackServiceTests {
     // ──────────────────────────────────────────────────────────────────────────
 
     @Test
+    void feedbackAuthorCarriesProfileImage() {
+        reviewer.changeProfileImage("https://cdn.test/profiles/r/1.jpg");
+        entityManager.flush();
+        FeedbackResponse result = feedbackService.create(reviewer.getId(), tripId,
+                new CreateFeedbackRequest("사진 확인", null, null, List.of()));
+        assertEquals("https://cdn.test/profiles/r/1.jpg", result.author().profileImageUrl());
+    }
+
+    @Test
     void createsTripLevelFeedback() {
         FeedbackResponse result = feedbackService.create(reviewer.getId(), tripId,
                 new CreateFeedbackRequest("전체적으로 좋네요", null, null, List.of()));

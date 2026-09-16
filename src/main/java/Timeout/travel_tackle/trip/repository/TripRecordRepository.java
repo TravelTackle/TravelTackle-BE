@@ -2,6 +2,7 @@ package Timeout.travel_tackle.trip.repository;
 
 import Timeout.travel_tackle.entity.Trip;
 import Timeout.travel_tackle.entity.TripRecord;
+import Timeout.travel_tackle.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -29,4 +30,7 @@ public interface TripRecordRepository extends JpaRepository<TripRecord, UUID> {
      */
     @Query("select r from TripRecord r where r.trip.id in :tripIds")
     List<TripRecord> findAllByTripIdIn(@Param("tripIds") Collection<UUID> tripIds);
+
+    // 공개 프로필의 "기록 수" — 피드에 노출되는 기록(계획이 공개된 경우)만 센다
+    long countByTrip_UserAndTrip_PublishedTrue(User user);
 }

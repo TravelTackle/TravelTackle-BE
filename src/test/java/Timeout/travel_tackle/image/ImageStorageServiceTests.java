@@ -144,6 +144,21 @@ class ImageStorageServiceTests {
         assertEquals(ErrorCode.IMAGE_UPLOAD_FAILED, ex.getErrorCode());
     }
 
+    @Test
+    void profileImagesUseTheirOwnPrefixAndRecordCleanupCannotDeleteThem() {
+        when(s3Client.putObject(any(PutObjectRequest.class), any(RequestBody.class)))
+                .thenReturn(PutObjectResponse.builder().build());
+        ImageStorageService service = service(s3Client, properties);
+
+        String url = service.upload(USER_ID, new MockMultipartFile("image", "me.png", "image/png", PNG), ImageStorageService.Kind.PROFILE);
+        assertTrue(url.startsWith(BASE + "profiles/" + USER_ID + "/"));
+
+        service.deleteQuietly(USER_ID, url); // 기록 정리 경로(RECORD)는 프로필 키를 건드리지 않는다
+        verify(s3Client, never()).deleteObject(any(DeleteObjectRequest.class));
+        service.deleteQuietly(USER_ID, url, ImageStorageService.Kind.PROFILE);
+        verify(s3Client).deleteObject(any(DeleteObjectRequest.class));
+    }
+
     private static ImageStorageService service(S3Client s3Client, ImageStorageProperties properties) {
         StaticListableBeanFactory beans = new StaticListableBeanFactory();
         if (s3Client != null) {

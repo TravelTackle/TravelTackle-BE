@@ -58,6 +58,7 @@ public enum ErrorCode {
     CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "AUTH_022", "현재 비밀번호가 올바르지 않습니다."),
     NO_LOCAL_PASSWORD(HttpStatus.BAD_REQUEST, "AUTH_023", "소셜 로그인 계정은 비밀번호를 변경할 수 없습니다."),
     SAME_AS_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, "AUTH_024", "새 비밀번호는 현재 비밀번호와 달라야 합니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH_025", "사용자를 찾을 수 없습니다."),
 
     //Tour API에 관련 예외
     TOUR_API_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "TOUR_001", "관광 API 키가 설정되지 않았습니다."),
@@ -76,6 +77,9 @@ public enum ErrorCode {
     UNSUPPORTED_IMAGE_TYPE(HttpStatus.BAD_REQUEST, "IMAGE_002", "지원하지 않는 이미지 형식입니다. (jpeg, png, webp)"),
     IMAGE_TOO_LARGE(HttpStatus.BAD_REQUEST, "IMAGE_003", "이미지는 파일당 10MB, 요청 전체 50MB 이하여야 합니다."),
     IMAGE_UPLOAD_FAILED(HttpStatus.SERVICE_UNAVAILABLE, "IMAGE_004", "이미지 저장소에 업로드하지 못했습니다. 저장소 설정(버킷·리전·자격 증명)을 확인해 주세요."),
+
+    //알림에 관련 예외
+    NOTIFICATION_NOT_FOUND(HttpStatus.NOT_FOUND, "NOTI_001", "알림을 찾을 수 없습니다."),
 
     INVALID_INPUT(HttpStatus.BAD_REQUEST, "COMMON_002", "요청 값이 올바르지 않습니다.", "The request is invalid."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "COMMON_001", "서버 내부 오류가 발생했습니다.", "An internal server error occurred.");

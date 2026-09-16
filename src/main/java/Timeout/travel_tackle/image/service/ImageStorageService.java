@@ -31,7 +31,18 @@ import java.util.UUID;
 public class ImageStorageService {
 
     public static final long MAX_CONTENT_LENGTH = 10L * 1024 * 1024;
-    private static final String KEY_PREFIX = "images/";
+
+    /** 이미지 용도. 키 접두사가 다르고, 삭제도 같은 용도의 키만 지운다 (기록 정리가 프로필 사진을 지우지 못하게). */
+    public enum Kind {
+        RECORD("images/"),
+        PROFILE("profiles/");
+
+        private final String prefix;
+
+        Kind(String prefix) {
+            this.prefix = prefix;
+        }
+    }
     private static final byte[] JPEG_MAGIC = {(byte) 0xFF, (byte) 0xD8, (byte) 0xFF};
     private static final byte[] PNG_MAGIC = {(byte) 0x89, 'P', 'N', 'G', 0x0D, 0x0A, 0x1A, 0x0A};
     private static final byte[] RIFF_MAGIC = {'R', 'I', 'F', 'F'};
@@ -48,8 +59,12 @@ public class ImageStorageService {
         detectType(file);
     }
 
-    /** 파일을 S3 에 올리고 읽기 URL 을 돌려준다. */
+    /** 파일을 S3 에 올리고 읽기 URL 을 돌려준다 (기록 사진). */
     public String upload(UUID userId, MultipartFile file) {
+        return upload(userId, file, Kind.RECORD);
+    }
+
+    public String upload(UUID userId, MultipartFile file, Kind kind) {
         ImageStorageProperties properties = propertiesProvider.getIfAvailable();
         S3Client s3Client = s3ClientProvider.getIfAvailable();
         if (properties == null || s3Client == null) {
@@ -57,7 +72,7 @@ public class ImageStorageService {
         }
         ImageType type = detectType(file);
 
-        String key = buildKey(userId, type.extension());
+        String key = buildKey(userId, type.extension(), kind);
         PutObjectRequest request = PutObjectRequest.builder()
                 .bucket(properties.bucket())
                 .key(key)
@@ -87,13 +102,17 @@ public class ImageStorageService {
      * 실패해도 호출자 흐름은 막지 않는다.
      */
     public void deleteQuietly(UUID ownerId, String imageUrl) {
+        deleteQuietly(ownerId, imageUrl, Kind.RECORD);
+    }
+
+    public void deleteQuietly(UUID ownerId, String imageUrl, Kind kind) {
         ImageStorageProperties properties = propertiesProvider.getIfAvailable();
         S3Client s3Client = s3ClientProvider.getIfAvailable();
         if (properties == null || s3Client == null) {
             return;
         }
         String key = properties.keyOf(imageUrl);
-        if (key == null || !key.startsWith(KEY_PREFIX + ownerId + "/")) {
+        if (key == null || !key.startsWith(kind.prefix + ownerId + "/")) {
             return;
         }
         try {
@@ -105,24 +124,32 @@ public class ImageStorageService {
 
     /** DB 커밋이 실패했는데 S3 객체만 사라지는 일이 없도록, 트랜잭션 안에서는 커밋 이후에 지운다. */
     public void deleteAfterCommit(UUID ownerId, List<String> imageUrls) {
+        deleteAfterCommit(ownerId, imageUrls, Kind.RECORD);
+    }
+
+    public void deleteAfterCommit(UUID ownerId, List<String> imageUrls, Kind kind) {
         List<String> urls = List.copyOf(imageUrls);
         if (urls.isEmpty()) {
             return;
         }
         if (!TransactionSynchronizationManager.isSynchronizationActive()) {
-            urls.forEach(url -> deleteQuietly(ownerId, url));
+            urls.forEach(url -> deleteQuietly(ownerId, url, kind));
             return;
         }
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
             public void afterCommit() {
-                urls.forEach(url -> deleteQuietly(ownerId, url));
+                urls.forEach(url -> deleteQuietly(ownerId, url, kind));
             }
         });
     }
 
     /** 업로드는 트랜잭션 밖(S3)에서 일어나므로, 롤백되면 방금 올린 객체를 되돌려 지운다. */
     public void deleteOnRollback(UUID ownerId, List<String> imageUrls) {
+        deleteOnRollback(ownerId, imageUrls, Kind.RECORD);
+    }
+
+    public void deleteOnRollback(UUID ownerId, List<String> imageUrls, Kind kind) {
         List<String> urls = List.copyOf(imageUrls);
         if (urls.isEmpty() || !TransactionSynchronizationManager.isSynchronizationActive()) {
             return;
@@ -131,7 +158,7 @@ public class ImageStorageService {
             @Override
             public void afterCompletion(int status) {
                 if (status == STATUS_ROLLED_BACK) {
-                    urls.forEach(url -> deleteQuietly(ownerId, url));
+                    urls.forEach(url -> deleteQuietly(ownerId, url, kind));
                 }
             }
         });
@@ -171,9 +198,9 @@ public class ImageStorageService {
     }
 
     // 클라이언트 파일명은 쓰지 않는다 — 경로 조작·중복을 막기 위해 서버가 키를 정하고, 소유자 ID 를 키에 넣어 삭제 권한의 근거로 쓴다
-    private String buildKey(UUID userId, String extension) {
+    private String buildKey(UUID userId, String extension, Kind kind) {
         LocalDate today = LocalDate.now();
-        return KEY_PREFIX + userId + "/" + today.getYear() + "/" + String.format("%02d", today.getMonthValue())
+        return kind.prefix + userId + "/" + today.getYear() + "/" + String.format("%02d", today.getMonthValue())
                 + "/" + UUID.randomUUID() + "." + extension;
     }
 }

@@ -17,12 +17,13 @@ public record FeedbackResponse(
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
-    public record AuthorInfo(UUID id, String name) {}
+    public record AuthorInfo(UUID id, String name, String profileImageUrl) {}
 
     public static FeedbackResponse of(TripFeedback feedback, List<FeedbackRecommendationResponse> recommendations) {
         AuthorInfo author = feedback.getAuthor() != null
-                ? new AuthorInfo(feedback.getAuthor().getId(), feedback.getAuthor().getName())
-                : new AuthorInfo(null, "탈퇴한 사용자");
+                ? new AuthorInfo(feedback.getAuthor().getId(), feedback.getAuthor().getName(),
+                        feedback.getAuthor().getProfileImageUrl())
+                : new AuthorInfo(null, "탈퇴한 사용자", null);
         return new FeedbackResponse(
                 feedback.getId(),
                 author,

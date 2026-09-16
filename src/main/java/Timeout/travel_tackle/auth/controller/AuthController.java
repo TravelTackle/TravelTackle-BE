@@ -1,5 +1,9 @@
 package Timeout.travel_tackle.auth.controller;
 
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import Timeout.travel_tackle.auth.dto.ChangePasswordRequest;
 import Timeout.travel_tackle.auth.dto.EmailVerificationConfirmRequest;
 import Timeout.travel_tackle.auth.dto.EmailVerificationRequest;
@@ -113,6 +117,21 @@ public class AuthController {
             @Valid @RequestBody UpdateProfileRequest request
     ) {
         return ResponseEntity.ok(authenticationService.updateProfile(jwt.getSubject(), request));
+    }
+
+    @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "프로필 사진 교체 (multipart: image, jpeg/png/webp 10MB 이하)")
+    public ResponseEntity<CurrentUserResponse> updateProfileImage(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestPart("image") MultipartFile image
+    ) {
+        return ResponseEntity.ok(authenticationService.updateProfileImage(jwt.getSubject(), image));
+    }
+
+    @DeleteMapping("/me/profile-image")
+    @Operation(summary = "프로필 사진 삭제 (기본 이미지로)")
+    public ResponseEntity<CurrentUserResponse> removeProfileImage(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(authenticationService.removeProfileImage(jwt.getSubject()));
     }
 
     @PutMapping("/notifications")
