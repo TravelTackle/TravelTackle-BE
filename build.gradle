@@ -48,7 +48,8 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
-	testCompileOnly 'org.projectlombok:lombok'
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+    testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	// Spring Boot 4 는 spring-boot-starter-test 를 슬라이스 스타터로 쪼갰고, 이들은 junit-jupiter-api(작성용)만
 	// 제공하고 실행 엔진은 주지 않는다. 엔진이 없으면 JUnit Platform 이 테스트를 0개로 인식("No tests found")하므로 명시 추가.
