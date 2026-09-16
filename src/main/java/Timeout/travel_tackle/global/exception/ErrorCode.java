@@ -60,6 +60,7 @@ public enum ErrorCode {
     CURRENT_PASSWORD_MISMATCH(HttpStatus.BAD_REQUEST, "AUTH_022", "현재 비밀번호가 올바르지 않습니다."),
     NO_LOCAL_PASSWORD(HttpStatus.BAD_REQUEST, "AUTH_023", "소셜 로그인 계정은 비밀번호를 변경할 수 없습니다."),
     SAME_AS_CURRENT_PASSWORD(HttpStatus.BAD_REQUEST, "AUTH_024", "새 비밀번호는 현재 비밀번호와 달라야 합니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "AUTH_025", "사용자를 찾을 수 없습니다."),
 
     //Tour API에 관련 예외
     TOUR_API_NOT_CONFIGURED(HttpStatus.SERVICE_UNAVAILABLE, "TOUR_001", "관광 API 키가 설정되지 않았습니다."),

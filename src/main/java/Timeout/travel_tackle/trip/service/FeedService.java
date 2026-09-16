@@ -12,6 +12,7 @@ import Timeout.travel_tackle.trip.dto.PublicTripDetailResponse;
 import Timeout.travel_tackle.trip.dto.RegionCountResponse;
 import Timeout.travel_tackle.trip.dto.TripDetailResponse;
 import Timeout.travel_tackle.trip.dto.TripRecordResponse;
+import Timeout.travel_tackle.trip.dto.UserProfileResponse;
 import Timeout.travel_tackle.trip.repository.SavedTripRepository;
 import Timeout.travel_tackle.trip.repository.TripFeedbackRepository;
 import Timeout.travel_tackle.trip.repository.TripPhotoRepository;
@@ -77,18 +78,51 @@ public class FeedService {
                 : (sort == FeedSort.POPULAR
                         ? tripRepository.findPublishedWithUserOrderByPopularity(pageable)
                         : tripRepository.findPublishedWithUser(pageable));
+        return buildFeedPage(trips, pageable, userId);
+    }
+
+    /**
+     * 마이페이지(/mypage)가 아니라 이 엔드포인트로 타인의 공개 프로필을 열람할 때 쓰는 피드 —
+     * 그 사용자의 공개(published) 계획/기록만 나가고, keyword 검색은 지원하지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public Page<FeedItemResponse> getUserFeed(UUID targetUserId, Pageable pageable, FeedSort sort, UUID viewerUserId) {
+        User targetUser = findUser(targetUserId);
+        Page<Trip> trips = sort == FeedSort.POPULAR
+                ? tripRepository.findPublishedByUserOrderByPopularity(targetUser, pageable)
+                : tripRepository.findPublishedByUser(targetUser, pageable);
+        return buildFeedPage(trips, pageable, viewerUserId);
+    }
+
+    /**
+     * 공개 프로필 요약(이름/프로필사진/공개 계획·기록 수) — 이메일·크레딧 등 비공개 정보는 담지 않는다.
+     */
+    @Transactional(readOnly = true)
+    public UserProfileResponse getUserProfile(UUID targetUserId) {
+        User targetUser = findUser(targetUserId);
+        long planCount = tripRepository.countByUserAndPublishedTrue(targetUser);
+        long recordCount = tripRecordRepository.countByTrip_UserAndTrip_PublishedTrue(targetUser);
+        return UserProfileResponse.of(targetUser, planCount, recordCount);
+    }
+
+    private Page<FeedItemResponse> buildFeedPage(Page<Trip> trips, Pageable pageable, UUID viewerUserId) {
         List<UUID> tripIds = trips.getContent().stream().map(Trip::getId).toList();
         Map<UUID, String> thumbnails = resolveThumbnails(trips.getContent());
         Map<UUID, Long> feedbackCounts = resolveFeedbackCounts(tripIds);
         Map<UUID, Long> saveCounts = resolveSaveCounts(tripIds);
         Map<UUID, TripRecord> records = resolveRecords(tripIds);
-        Map<UUID, UUID> savedTripIdsByOriginal = resolveSavedTripIdsByOriginal(userId, tripIds);
+        Map<UUID, UUID> savedTripIdsByOriginal = resolveSavedTripIdsByOriginal(viewerUserId, tripIds);
 
         List<FeedItemResponse> items = trips.getContent().stream()
                 .flatMap(trip -> buildFeedItems(trip, thumbnails, feedbackCounts, saveCounts, records, savedTripIdsByOriginal).stream())
                 .toList();
 
         return new PageImpl<>(items, pageable, trips.getTotalElements());
+    }
+
+    private User findUser(UUID userId) {
+        return userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
     }
 
     /**
