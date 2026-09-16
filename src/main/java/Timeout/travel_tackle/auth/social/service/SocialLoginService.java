@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.Map;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -38,8 +39,13 @@ public class SocialLoginService {
         String email = provider == AuthProvider.KAKAO
                 ? null
                 : emailNormalizer.normalize(profile.email());
-        if (email != null && userRepository.existsByEmail(email)) {
-            throw new CustomException(ErrorCode.SOCIAL_ACCOUNT_LINK_REQUIRED);
+        if (email != null) {
+            // 같은 이메일의 기존(이메일 가입) 계정이 있으면 새로 만들지 않고 소셜 계정을 그 계정에 연결한다.
+            // validateProfile 이 제공자 측 이메일 인증(email_verified)을 이미 확인했으므로 소유자가 같다고 볼 수 있다.
+            Optional<User> existing = userRepository.findByEmail(email);
+            if (existing.isPresent()) {
+                return linkProvider(existing.get(), provider, profile);
+            }
         }
 
         String name = StringUtils.hasText(profile.name())
@@ -47,6 +53,11 @@ public class SocialLoginService {
                 : provider.name() + " 사용자";
         User user = User.socialUser(email, name);
         userRepository.save(user);
+        userAuthProviderRepository.save(new UserAuthProvider(user, provider, profile.providerUserId()));
+        return user;
+    }
+
+    private User linkProvider(User user, AuthProvider provider, SocialProfile profile) {
         userAuthProviderRepository.save(new UserAuthProvider(user, provider, profile.providerUserId()));
         return user;
     }
