@@ -36,6 +36,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 	implementation 'com.github.ben-manes.caffeine:caffeine'
+	implementation 'io.sentry:sentry-spring-boot-4-starter:8.56.0'
+	implementation 'io.sentry:sentry-logback:8.56.0'
 	implementation platform('software.amazon.awssdk:bom:2.54.16')
 	implementation 'software.amazon.awssdk:s3'
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
