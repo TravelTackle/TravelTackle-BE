@@ -4,6 +4,7 @@ import Timeout.travel_tackle.trip.dto.FeedItemResponse;
 import Timeout.travel_tackle.trip.dto.FeedSort;
 import Timeout.travel_tackle.trip.dto.PublicTripDetailResponse;
 import Timeout.travel_tackle.trip.dto.RegionCountResponse;
+import Timeout.travel_tackle.trip.dto.UserProfileResponse;
 import Timeout.travel_tackle.trip.service.FeedService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -54,19 +55,49 @@ public class FeedController {
             feedSort = FeedSort.LATEST; // 키워드 없이 relevance 요청 시 최신순으로 대체
         }
 
-        Pageable pageable;
-        if (hasKeyword) {
-            pageable = PageRequest.of(safePage, safeSize); // 정렬은 QueryDSL 쿼리 안에서 처리
-        } else if (feedSort == FeedSort.OLDEST) {
-            pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.ASC, "createdAt"));
-        } else if (feedSort == FeedSort.LATEST) {
-            pageable = PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
-        } else {
-            pageable = PageRequest.of(safePage, safeSize);
-        }
+        Pageable pageable = hasKeyword
+                ? PageRequest.of(safePage, safeSize) // 정렬은 QueryDSL 쿼리 안에서 처리
+                : sortedPageable(safePage, safeSize, feedSort);
 
         UUID userId = jwt != null ? UUID.fromString(jwt.getSubject()) : null;
         return ResponseEntity.ok(feedService.getFeed(pageable, feedSort, keyword, userId));
+    }
+
+    @GetMapping("/users/{userId}")
+    @Operation(summary = "특정 사용자의 공개 프로필 피드 조회 (/mypage가 아닌 외부 열람용, keyword 검색 미지원, sort=latest|oldest|popular)")
+    public ResponseEntity<Page<FeedItemResponse>> getUserFeed(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "latest") String sort
+    ) {
+        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
+        int safePage = Math.max(page, 0);
+        FeedSort feedSort = FeedSort.from(sort);
+        if (feedSort == FeedSort.RELEVANCE) {
+            feedSort = FeedSort.LATEST; // keyword 검색이 없으니 relevance는 의미가 없다
+        }
+
+        Pageable pageable = sortedPageable(safePage, safeSize, feedSort);
+        UUID viewerId = jwt != null ? UUID.fromString(jwt.getSubject()) : null;
+        return ResponseEntity.ok(feedService.getUserFeed(userId, pageable, feedSort, viewerId));
+    }
+
+    @GetMapping("/users/{userId}/profile")
+    @Operation(summary = "특정 사용자의 공개 프로필 요약 (이름/프로필사진/공개 계획·기록 수 — 이메일 등 비공개 정보 없음)")
+    public ResponseEntity<UserProfileResponse> getUserProfile(@PathVariable UUID userId) {
+        return ResponseEntity.ok(feedService.getUserProfile(userId));
+    }
+
+    private Pageable sortedPageable(int page, int size, FeedSort sort) {
+        if (sort == FeedSort.OLDEST) {
+            return PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
+        }
+        if (sort == FeedSort.LATEST) {
+            return PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        }
+        return PageRequest.of(page, size);
     }
 
     @GetMapping("/regions")
