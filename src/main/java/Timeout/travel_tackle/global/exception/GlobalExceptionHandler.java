@@ -1,11 +1,14 @@
 package Timeout.travel_tackle.global.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
+import io.sentry.SentryLevel;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
@@ -14,7 +17,10 @@ import org.springframework.web.multipart.support.MissingServletRequestPartExcept
 
 @Slf4j
 @RestControllerAdvice
+@RequiredArgsConstructor
 public class GlobalExceptionHandler {
+
+    private final SentryErrorReporter sentryErrorReporter;
 
     @ExceptionHandler({MethodArgumentNotValidException.class, HttpMessageNotReadableException.class,
             MethodArgumentTypeMismatchException.class, MissingServletRequestPartException.class})
@@ -45,6 +51,24 @@ public class GlobalExceptionHandler {
         log.debug("Client disconnected during async response: path={}", request.getRequestURI());
     }
 
+    // SSE 연결이 SseEmitter 타임아웃(30분)에 도달하면 스프링이 이 예외로 통보한다. 브라우저 EventSource 가 자동 재연결하므로 정상 동작이다
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public void handleAsyncTimeout(AsyncRequestTimeoutException exception, HttpServletRequest request) {
+        log.debug("Async request timed out (SSE emitter expiry): path={}", request.getRequestURI());
+    }
+
+    // HttpMessageNotWritableException("Could not write JSON: ... Broken pipe") 처럼 원인 사슬 어딘가에 소켓 IOException 이 있으면 클라이언트 끊김으로 본다
+    static boolean isClientDisconnect(Throwable exception) {
+        for (Throwable t = exception; t != null; t = t.getCause() == t ? null : t.getCause()) {
+            if (t instanceof java.io.IOException) {
+                String message = t.getMessage() == null ? "" : t.getMessage();
+                return message.contains("Broken pipe") || message.contains("Connection reset")
+                        || t.getClass().getSimpleName().equals("ClientAbortException");
+            }
+        }
+        return false;
+    }
+
     @ExceptionHandler(CustomException.class)
     public ResponseEntity<ErrorResponse> handleCustomException(
             CustomException exception,
@@ -52,6 +76,10 @@ public class GlobalExceptionHandler {
     ) {
         ErrorCode errorCode = exception.getErrorCode();
         log.warn("Handled custom exception: code={}, path={}", errorCode.getCode(), request.getRequestURI());
+        // 4xx 는 사용자 실수라 보내지 않고, 외부 의존(메일·TourAPI·S3) 장애인 5xx 만 WARNING 으로 보낸다
+        if (errorCode.getStatus().is5xxServerError()) {
+            sentryErrorReporter.report(exception, request, SentryLevel.WARNING, errorCode.getCode());
+        }
 
         return ResponseEntity
                 .status(errorCode.getStatus())
@@ -63,8 +91,15 @@ public class GlobalExceptionHandler {
             Exception exception,
             HttpServletRequest request
     ) {
+        // 응답을 쓰는 도중 브라우저가 연결을 끊은 경우(페이지 이동, 요청 취소). 서버 장애가 아니고 응답도 못 쓰므로 조용히 끝낸다
+        if (isClientDisconnect(exception)) {
+            log.debug("Client disconnected while writing response: path={}", request.getRequestURI());
+            return null;
+        }
         ErrorCode errorCode = ErrorCode.INTERNAL_SERVER_ERROR;
-        log.error("Unhandled exception: path={}", request.getRequestURI(), exception);
+        // 태그를 붙인 캡처를 먼저 보내고 나서 로그를 남긴다. sentry-logback 이 같은 예외를 다시 보내려 해도 SDK 중복 제거에 걸려 첫 이벤트만 남는다
+        sentryErrorReporter.report(exception, request, SentryLevel.ERROR, errorCode.getCode());
+        log.error("Unhandled exception: path={}", request.getRequestURI(), exception); // 서버 로그는 그대로 남긴다
 
         return ResponseEntity
                 .status(errorCode.getStatus())
