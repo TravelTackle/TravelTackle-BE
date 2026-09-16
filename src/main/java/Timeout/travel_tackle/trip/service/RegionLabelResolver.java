@@ -1,5 +1,7 @@
 package Timeout.travel_tackle.trip.service;
 
+import Timeout.travel_tackle.trip.dto.TripDetailResponse;
+
 /**
  * 캐싱된 주소 문자열에서 짧은 지역 라벨을 뽑아낸다 (예: "경기도 수원시 팔달구..." -> "수원").
  * 첫 토큰이 광역시급(특별시/광역시/특별자치시)이면 그 자체가 지역명이고,
@@ -12,6 +14,14 @@ public final class RegionLabelResolver {
     private static final String[] CITY_SUFFIXES = {"시", "군", "구"};
 
     private RegionLabelResolver() {
+    }
+
+    public static String fromTripDetail(TripDetailResponse detail) {
+        return detail.days().stream()
+                .flatMap(day -> day.items().stream())
+                .findFirst()
+                .map(item -> fromAddress(item.address()))
+                .orElse(null);
     }
 
     public static String fromAddress(String address) {

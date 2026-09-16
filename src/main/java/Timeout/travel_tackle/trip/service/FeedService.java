@@ -179,7 +179,7 @@ public class FeedService {
         UUID savedTripId = resolveSavedTripIdsByOriginal(userId, List.of(tripId)).get(tripId);
         long saveCount = resolveSaveCounts(List.of(tripId)).getOrDefault(tripId, 0L);
 
-        return PublicTripDetailResponse.of(trip, resolveRegion(detail), detail.days(), record, feedbackCount, savedTripId, saveCount);
+        return PublicTripDetailResponse.of(trip, RegionLabelResolver.fromTripDetail(detail), detail.days(), record, feedbackCount, savedTripId, saveCount);
     }
 
     private List<FeedItemResponse> buildFeedItems(
@@ -191,7 +191,7 @@ public class FeedService {
         long saveCount = saveCounts.getOrDefault(trip.getId(), 0L);
         UUID savedTripId = savedTripIdsByOriginal.get(trip.getId());
         TripDetailResponse detail = tripQueryRepository.findDetail(trip);
-        String region = resolveRegion(detail);
+        String region = RegionLabelResolver.fromTripDetail(detail);
 
         List<FeedItemResponse> items = new ArrayList<>();
         items.add(FeedItemResponse.ofPlan(trip, thumbnailUrl, feedbackCount, saveCount, savedTripId, region, detail.days()));
@@ -216,14 +216,6 @@ public class FeedService {
             savedTripIdsByOriginal.put((UUID) row[0], (UUID) row[1]);
         }
         return savedTripIdsByOriginal;
-    }
-
-    private String resolveRegion(TripDetailResponse detail) {
-        return detail.days().stream()
-                .flatMap(day -> day.items().stream())
-                .findFirst()
-                .map(item -> RegionLabelResolver.fromAddress(item.address()))
-                .orElse(null);
     }
 
     private Map<UUID, TripRecord> resolveRecords(List<UUID> tripIds) {

@@ -14,7 +14,8 @@ public record TripSummaryResponse(
         LocalDate endDate,
         TripStatus status,
         boolean published,
-        LocalDateTime createdAt
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
 ) {
     public static TripSummaryResponse from(Trip trip) {
         return new TripSummaryResponse(
@@ -24,7 +25,8 @@ public record TripSummaryResponse(
                 trip.getEndDate(),
                 trip.getStatus(),
                 trip.isPublished(),
-                trip.getCreatedAt()
+                trip.getCreatedAt(),
+                trip.getUpdatedAt()
         );
     }
 }

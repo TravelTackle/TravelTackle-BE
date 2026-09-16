@@ -155,22 +155,14 @@ public class SavedTripService {
                     if (savedTrip.getSourceType() == FeedItemType.RECORD && record != null) {
                         TripDetailResponse detail = tripQueryRepository.findDetail(savedTrip.getOriginalTrip());
                         return SavedTripResponse.ofRecord(
-                                savedTrip, record, resolveRegion(detail), thumbnailUrl, feedbackCount, saveCount);
+                                savedTrip, record, RegionLabelResolver.fromTripDetail(detail), thumbnailUrl, feedbackCount, saveCount);
                     }
 
                     TripDetailResponse detail = tripQueryRepository.findDetail(savedTrip.getOriginalTrip());
                     return SavedTripResponse.ofPlan(
-                            savedTrip, resolveRegion(detail), thumbnailUrl, feedbackCount, saveCount, detail.days());
+                            savedTrip, RegionLabelResolver.fromTripDetail(detail), thumbnailUrl, feedbackCount, saveCount, detail.days());
                 })
                 .toList();
-    }
-
-    private String resolveRegion(TripDetailResponse detail) {
-        return detail.days().stream()
-                .flatMap(day -> day.items().stream())
-                .findFirst()
-                .map(item -> RegionLabelResolver.fromAddress(item.address()))
-                .orElse(null);
     }
 
     private Map<UUID, String> resolveThumbnails(List<UUID> tripIds) {
