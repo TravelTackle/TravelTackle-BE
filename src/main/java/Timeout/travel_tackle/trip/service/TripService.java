@@ -76,7 +76,7 @@ public class TripService {
         TripDetailResponse detail = tripQueryRepository.findDetail(trip);
         long saveCount = savedTripRepository.countGroupByOriginalTripIds(List.of(tripId)).stream()
                 .findFirst().map(row -> (Long) row[1]).orElse(0L);
-        return detail.withSaveCount(saveCount);
+        return detail.withSaveCount(saveCount).withRegion(RegionLabelResolver.fromTripDetail(detail));
     }
 
     @Transactional
@@ -137,6 +137,7 @@ public class TripService {
                 cartItem.getCachedLclsSystm1(), cartItem.getCachedLclsSystm2(), cartItem.getCachedLclsSystm3(),
                 request.startTime(), request.endTime(), nextIndex, null, null);
         tripItemRepository.save(item);
+        trip.touch();
         return TripItemResponse.from(item);
     }
 
@@ -150,6 +151,7 @@ public class TripService {
         if (request.memo() != null) {
             item.changeMemo(request.memo());
         }
+        trip.touch();
         return TripItemResponse.from(item);
     }
 
@@ -163,6 +165,7 @@ public class TripService {
         }
         tripFeedbackRepository.clearTripItemById(itemId);
         tripItemRepository.delete(item);
+        trip.touch();
     }
 
     /**
@@ -201,6 +204,7 @@ public class TripService {
             ordered.add(item);
         }
         tripItemRepository.saveAll(ordered);
+        trip.touch();
 
         return ordered.stream().map(TripItemResponse::from).toList();
     }
@@ -226,6 +230,7 @@ public class TripService {
 
         if (currentDay.getId().equals(newDay.getId())) {
             moveWithinSameDay(item, sourceItems, request.newOrderIndex());
+            trip.touch();
             return TripItemResponse.from(item);
         }
         if (trip.isPublished() && sourceItems.size() <= 1) {
@@ -249,6 +254,7 @@ public class TripService {
         applyOrder(targetItems);
         item.moveTo(newDay, newIndex);
         tripItemRepository.saveAll(affectedItems);
+        trip.touch();
 
         return TripItemResponse.from(item);
     }

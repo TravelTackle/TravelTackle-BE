@@ -27,6 +27,7 @@ public record FeedItemResponse(
         long saveCount,
         UUID savedTripId,
         LocalDateTime createdAt,
+        LocalDateTime updatedAt,
         List<TripDayResponse> days
 ) {
     public static FeedItemResponse ofPlan(
@@ -50,6 +51,7 @@ public record FeedItemResponse(
                 saveCount,
                 savedTripId,
                 trip.getCreatedAt(),
+                trip.getUpdatedAt(),
                 days
         );
     }
@@ -75,6 +77,7 @@ public record FeedItemResponse(
                 saveCount,
                 savedTripId,
                 record.getCreatedAt(),
+                null,
                 null
         );
     }
