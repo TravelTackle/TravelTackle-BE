@@ -1,5 +1,6 @@
 package Timeout.travel_tackle.tour;
 
+import Timeout.travel_tackle.tour.client.TourApiClient;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -31,8 +32,9 @@ class TourApiClientTests {
         server.createContext("/", exchange -> respond(exchange, requestedUri));
         server.start();
 
-        String baseUrl = "http://localhost:" + server.getAddress().getPort()
-                + "/B551011/KorService2";
+        // 다국어 서비스 지원 이후 base-url은 서비스 세그먼트 없이 /B551011까지만 —
+        // 클라이언트가 요청마다 "/{service}/{endpoint}"를 붙인다 (기본 KorService2)
+        String baseUrl = "http://localhost:" + server.getAddress().getPort() + "/B551011";
         TourApiClient client = new TourApiClient(baseUrl, "test-service-key", "TravelTackle");
 
         TourApiClient.TourApiResult result =

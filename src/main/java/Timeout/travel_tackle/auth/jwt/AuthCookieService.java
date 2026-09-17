@@ -1,7 +1,6 @@
 package Timeout.travel_tackle.auth.jwt;
 
-import Timeout.travel_tackle.auth.jwt.RefreshTokenService.AuthTokens;
-import Timeout.travel_tackle.config.JwtConfig.JwtProperties;
+import Timeout.travel_tackle.auth.jwt.service.RefreshTokenService.AuthTokens;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

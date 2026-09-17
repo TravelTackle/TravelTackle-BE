@@ -1,6 +1,9 @@
 package Timeout.travel_tackle.entity;
 
+import Timeout.travel_tackle.entity.Enum.BudgetLevel;
 import Timeout.travel_tackle.entity.Enum.InterestTag;
+import Timeout.travel_tackle.entity.Enum.PreferredRegion;
+import Timeout.travel_tackle.entity.Enum.TravelStyle;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -25,14 +28,13 @@ public class UserPreference {
     @JoinColumn(name = "user_id", nullable = false, unique = true)
     private User user;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "travel_style")
-    private String travelStyle;
+    private TravelStyle travelStyle;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "budget_level")
-    private String budgetLevel;
-
-    @Column(name = "preferred_region")
-    private String preferredRegion;
+    private BudgetLevel budgetLevel;
 
     @ElementCollection
     @CollectionTable(
@@ -46,25 +48,42 @@ public class UserPreference {
     @Column(name = "interest_tag", nullable = false)
     private Set<InterestTag> interestTags = new HashSet<>();
 
-    public UserPreference(User user, String travelStyle, String budgetLevel,
-                          String preferredRegion, Set<InterestTag> interestTags) {
+    @ElementCollection
+    @CollectionTable(
+            name = "user_preference_regions",
+            joinColumns = @JoinColumn(name = "user_preference_id"),
+            uniqueConstraints = @UniqueConstraint(
+                    columnNames = {"user_preference_id", "region"}
+            )
+    )
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region", nullable = false)
+    private Set<PreferredRegion> preferredRegions = new HashSet<>();
+
+    public UserPreference(User user, TravelStyle travelStyle, BudgetLevel budgetLevel,
+                          Set<InterestTag> interestTags, Set<PreferredRegion> preferredRegions) {
         this.user = user;
         this.travelStyle = travelStyle;
         this.budgetLevel = budgetLevel;
-        this.preferredRegion = preferredRegion;
         this.interestTags.addAll(interestTags);
+        this.preferredRegions.addAll(preferredRegions);
     }
 
     public Set<InterestTag> getInterestTags() {
         return Collections.unmodifiableSet(interestTags);
     }
 
-    public void update(String travelStyle, String budgetLevel,
-                       String preferredRegion, Set<InterestTag> interestTags) {
+    public Set<PreferredRegion> getPreferredRegions() {
+        return Collections.unmodifiableSet(preferredRegions);
+    }
+
+    public void update(TravelStyle travelStyle, BudgetLevel budgetLevel,
+                       Set<InterestTag> interestTags, Set<PreferredRegion> preferredRegions) {
         this.travelStyle = travelStyle;
         this.budgetLevel = budgetLevel;
-        this.preferredRegion = preferredRegion;
         this.interestTags.clear();
         this.interestTags.addAll(interestTags);
+        this.preferredRegions.clear();
+        this.preferredRegions.addAll(preferredRegions);
     }
 }

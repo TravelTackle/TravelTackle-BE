@@ -1,0 +1,22 @@
+# 로컬 개발용 MariaDB. Homebrew 등으로 이미 3306 에 MariaDB 가 떠 있으면 이 파일은 필요 없음.
+services:
+  mariadb:
+    image: mariadb:11.4
+    container_name: travel-tackle-mariadb
+    ports:
+      - "3306:3306"
+    environment:
+      MARIADB_DATABASE: travel_tackle
+      MARIADB_USER: travel
+      MARIADB_PASSWORD: travel
+      MARIADB_ROOT_PASSWORD: root
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  mariadb-data:

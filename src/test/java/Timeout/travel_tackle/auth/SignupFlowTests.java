@@ -93,6 +93,11 @@ class SignupFlowTests {
             codes.put(email, code);
         }
 
+        @Override
+        public void sendPasswordResetCode(String email, String code) {
+            codes.put(email, code);
+        }
+
         String getCode(String email) {
             return codes.get(email);
         }

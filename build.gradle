@@ -3,6 +3,9 @@ plugins {
 	id 'org.springframework.boot' version '4.1.0'
 	id 'io.spring.dependency-management' version '1.1.7'
 }
+ext {
+	springAiVersion = "2.0.0"
+}
 
 group = 'Timeout'
 version = '0.0.1-SNAPSHOT'
@@ -33,13 +36,24 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.3'
 	implementation 'com.github.ben-manes.caffeine:caffeine'
-	compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'com.h2database:h2'
+	implementation 'io.sentry:sentry-spring-boot-4-starter:8.56.0'
+	implementation 'io.sentry:sentry-logback:8.56.0'
+	implementation platform('software.amazon.awssdk:bom:2.54.16')
+	implementation 'software.amazon.awssdk:s3'
+    implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+    compileOnly 'org.projectlombok:lombok'
+	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+	runtimeOnly 'com.h2database:h2' // 테스트(인메모리)용
+	// Apple Silicon용 DNS 네이티브 모듈. 버전은 기존 Netty 의존성 관리에 맞춘다.
+	runtimeOnly 'io.netty:netty-resolver-dns-native-macos::osx-aarch_64'
 	annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-data-jpa-test'
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	// Spring Boot 4 는 spring-boot-starter-test 를 슬라이스 스타터로 쪼갰고, 이들은 junit-jupiter-api(작성용)만
+	// 제공하고 실행 엔진은 주지 않는다. 엔진이 없으면 JUnit Platform 이 테스트를 0개로 인식("No tests found")하므로 명시 추가.
+	testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
 	testAnnotationProcessor 'org.projectlombok:lombok'
 
 
@@ -50,6 +64,9 @@ dependencies {
 	annotationProcessor "jakarta.persistence:jakarta.persistence-api"
 
 	implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:3.0.0'	//Swagger
+
+	// ArchUnit: JUnit5 전용 엔진(@ArchTest)은 JUnit Platform 6 미지원이라, 코어만 쓰고 표준 @Test 에서 rule.check() 호출
+	testImplementation("com.tngtech.archunit:archunit:1.4.2")
 }
 
 tasks.named('test') {
@@ -71,4 +88,9 @@ compileJava {
 
 clean {
 	delete file(generatedDir)
+}
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.ai:spring-ai-bom:$springAiVersion"
+	}
 }

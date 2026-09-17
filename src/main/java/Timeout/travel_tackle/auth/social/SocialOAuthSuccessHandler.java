@@ -1,8 +1,9 @@
 package Timeout.travel_tackle.auth.social;
+import Timeout.travel_tackle.auth.social.service.SocialLoginService;
 
 import Timeout.travel_tackle.auth.jwt.AuthCookieService;
-import Timeout.travel_tackle.auth.jwt.RefreshTokenService;
-import Timeout.travel_tackle.auth.jwt.RefreshTokenService.AuthTokens;
+import Timeout.travel_tackle.auth.jwt.service.RefreshTokenService;
+import Timeout.travel_tackle.auth.jwt.service.RefreshTokenService.AuthTokens;
 import Timeout.travel_tackle.entity.Enum.AuthProvider;
 import Timeout.travel_tackle.entity.User;
 import Timeout.travel_tackle.global.exception.CustomException;
@@ -36,9 +37,9 @@ public class SocialOAuthSuccessHandler implements AuthenticationSuccessHandler {
             SocialLoginService socialLoginService,
             RefreshTokenService refreshTokenService,
             AuthCookieService authCookieService,
-            @Value("${OAUTH_SUCCESS_REDIRECT_URL:http://localhost:3000/oauth/callback}")
+            @Value("${OAUTH_SUCCESS_REDIRECT_URL:http://localhost:5173/oauth/callback}")
             String successRedirectUrl,
-            @Value("${OAUTH_FAILURE_REDIRECT_URL:http://localhost:3000/login}")
+            @Value("${OAUTH_FAILURE_REDIRECT_URL:http://localhost:5173/login}")
             String failureRedirectUrl
     ) {
         this.socialLoginService = socialLoginService;

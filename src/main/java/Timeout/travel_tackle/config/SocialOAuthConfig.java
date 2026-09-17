@@ -30,7 +30,7 @@ public class SocialOAuthConfig {
         addIfConfigured(registrations, kakao(kakaoClientId, kakaoClientSecret));
         addIfConfigured(registrations, google(googleClientId, googleClientSecret));
         if (registrations.isEmpty()) {
-            throw new IllegalStateException("Social login is enabled but no provider credentials are configured");
+            throw new IllegalStateException("소셜 로그인이 활성화되어 있으나 설정된 제공자 자격 증명이 없습니다.");
         }
         return new InMemoryClientRegistrationRepository(registrations);
     }

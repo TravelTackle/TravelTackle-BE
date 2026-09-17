@@ -35,6 +35,27 @@ public class TripItem {
     @Column(name = "cached_image_url")
     private String cachedImageUrl; //사진 url
 
+    @Column(name = "region_code")
+    private String regionCode; //관광지 지역 코드 (취향 매칭용)
+
+    @Column(name = "content_type_id")
+    private String contentTypeId; //TourAPI 콘텐츠 타입 (12 관광지, 32 숙박, 39 음식점 등, 카테고리 아이콘/색 매칭용)
+
+    @Column(name = "address")
+    private String address; //관광지 전체 주소 (지역 라벨 파싱, 상세 표시용)
+
+    @Column(name = "memo")
+    private String memo; //사용자가 남긴 메모
+
+    @Column(name = "lcls_systm1")
+    private String lclsSystm1; //분류체계 대분류 (취향 매칭용)
+
+    @Column(name = "lcls_systm2")
+    private String lclsSystm2; //분류체계 중분류
+
+    @Column(name = "lcls_systm3")
+    private String lclsSystm3; //분류체계 소분류
+
     @Column(name = "start_time")
     private LocalTime startTime; //방문 시간
 
@@ -45,17 +66,27 @@ public class TripItem {
     private int orderIndex; //관고아 방문 순서
 
     public TripItem(TripDay tripDay, String tourApiContentId, String cachedTitle,
-                    String cachedImageUrl, LocalTime startTime, LocalTime endTime,
-                    int orderIndex) {
+                    String cachedImageUrl, String regionCode, String contentTypeId,
+                    String lclsSystm1, String lclsSystm2, String lclsSystm3,
+                    LocalTime startTime, LocalTime endTime,
+                    int orderIndex,
+                    String address, String memo) {
         validateTime(startTime, endTime);
         validateOrderIndex(orderIndex);
         this.tripDay = tripDay;
         this.tourApiContentId = tourApiContentId;
         this.cachedTitle = cachedTitle;
         this.cachedImageUrl = cachedImageUrl;
+        this.regionCode = regionCode;
+        this.contentTypeId = contentTypeId;
+        this.lclsSystm1 = lclsSystm1;
+        this.lclsSystm2 = lclsSystm2;
+        this.lclsSystm3 = lclsSystm3;
         this.startTime = startTime;
         this.endTime = endTime;
         this.orderIndex = orderIndex;
+        this.address = address;
+        this.memo = memo;
     }
 
     public void changeTime(LocalTime startTime, LocalTime endTime) {
@@ -64,9 +95,19 @@ public class TripItem {
         this.endTime = endTime;
     }
 
+    public void changeMemo(String memo) {
+        this.memo = memo;
+    }
+
     public void changeOrder(int orderIndex) {
         validateOrderIndex(orderIndex);
         this.orderIndex = orderIndex;
+    }
+
+    public void moveTo(TripDay newTripDay, int newOrderIndex) {
+        validateOrderIndex(newOrderIndex);
+        this.tripDay = newTripDay;
+        this.orderIndex = newOrderIndex;
     }
 
     private static void validateTime(LocalTime startTime, LocalTime endTime) {

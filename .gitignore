@@ -6,6 +6,7 @@ build/
 !**/src/test/**/build/
 
 application.yaml
+application.properties
 
 src/main/generated/
 
@@ -39,3 +40,18 @@ out/
 
 ### VS Code ###
 .vscode/
+
+### p6spy SQL log ###
+spy.log
+
+### H2 file database ###
+data/
+
+### local tool state ###
+.omc/
+
+### local dev seed (커밋 안 함) ###
+src/main/java/Timeout/travel_tackle/seed/
+
+### 운영 환경변수 (커밋 금지) ###
+.env

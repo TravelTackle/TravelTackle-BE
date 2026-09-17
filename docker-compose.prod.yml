@@ -1,0 +1,72 @@
+# 운영(EC2) 구성: app + MariaDB. SSL 은 호스트 Nginx 가 담당하고 127.0.0.1:8080 으로 프록시한다
+# (proxy_set_header Host $host; X-Forwarded-Proto $scheme; X-Forwarded-For 필요 — OAuth 리다이렉트/secure 쿠키용).
+# 값은 같은 폴더의 .env 에서 읽는다
+services:
+  app:
+    build: .
+    image: ${APP_IMAGE:-travel-tackle-api:latest} # CD(deploy.yml)는 GHCR 이미지를 넘기고, 로컬은 직접 build
+    container_name: travel-tackle-api
+    ports:
+      - "127.0.0.1:8080:8080" # 호스트 Nginx 전용
+    environment: # .env 에서 앱에 필요한 값만 넘긴다 (DB root 비밀번호는 제외)
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:mariadb://mariadb:3306/${DB_NAME:-travel_tackle}?characterEncoding=utf8mb4
+      DB_USERNAME: ${DB_USERNAME:-travel}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 를 .env 에 설정하세요}
+      FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:?FRONTEND_ORIGIN 을 .env 에 설정하세요}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET 을 .env 에 설정하세요}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-true}
+      SOCIAL_LOGIN_ENABLED: ${SOCIAL_LOGIN_ENABLED:-false}
+      KAKAO_CLIENT_ID: ${KAKAO_CLIENT_ID:-}
+      KAKAO_CLIENT_SECRET: ${KAKAO_CLIENT_SECRET:-}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      OAUTH_SUCCESS_REDIRECT_URL: ${OAUTH_SUCCESS_REDIRECT_URL:-}
+      OAUTH_FAILURE_REDIRECT_URL: ${OAUTH_FAILURE_REDIRECT_URL:-}
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_AUTH: ${SMTP_AUTH:-true}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-true}
+      MAIL_FROM: ${MAIL_FROM:-no-reply@travel-tackle.local}
+      TOUR_SERVICE_KEY: ${TOUR_SERVICE_KEY:?TOUR_SERVICE_KEY 를 .env 에 설정하세요}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?OPENAI_API_KEY 를 .env 에 설정하세요}
+      AWS_S3_BUCKET: ${AWS_S3_BUCKET:-}
+      AWS_REGION: ${AWS_REGION:-ap-northeast-2}
+      AWS_S3_PUBLIC_BASE_URL: ${AWS_S3_PUBLIC_BASE_URL:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-prod}
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8080/api/feed?size=1"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+
+  mariadb:
+    image: mariadb:11.4
+    container_name: travel-tackle-mariadb
+    environment:
+      MARIADB_DATABASE: ${DB_NAME:-travel_tackle}
+      MARIADB_USER: ${DB_USERNAME:-travel}
+      MARIADB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD 를 .env 에 설정하세요}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?DB_ROOT_PASSWORD 를 .env 에 설정하세요}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  mariadb-data:

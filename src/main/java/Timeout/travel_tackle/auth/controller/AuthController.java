@@ -1,13 +1,23 @@
 package Timeout.travel_tackle.auth.controller;
 
+import org.springframework.http.MediaType;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.RequestPart;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import Timeout.travel_tackle.auth.dto.ChangePasswordRequest;
 import Timeout.travel_tackle.auth.dto.EmailVerificationConfirmRequest;
 import Timeout.travel_tackle.auth.dto.EmailVerificationRequest;
 import Timeout.travel_tackle.auth.dto.CurrentUserResponse;
 import Timeout.travel_tackle.auth.dto.LoginRequest;
+import Timeout.travel_tackle.auth.dto.NotificationSettingsRequest;
+import Timeout.travel_tackle.auth.dto.PasswordResetConfirmRequest;
+import Timeout.travel_tackle.auth.dto.PasswordResetRequest;
 import Timeout.travel_tackle.auth.dto.SignupRequest;
 import Timeout.travel_tackle.auth.dto.SignupResponse;
+import Timeout.travel_tackle.auth.dto.UpdateProfileRequest;
 import Timeout.travel_tackle.auth.service.EmailVerificationService;
 import Timeout.travel_tackle.auth.service.AuthenticationService;
+import Timeout.travel_tackle.auth.service.PasswordResetService;
 import Timeout.travel_tackle.auth.service.SignupService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
@@ -31,6 +41,7 @@ public class AuthController {
     private final EmailVerificationService emailVerificationService;
     private final SignupService signupService;
     private final AuthenticationService authenticationService;
+    private final PasswordResetService passwordResetService;
 
     @PostMapping("/email-verifications")
     @Operation(summary = "이메일 인증번호 요청")
@@ -97,5 +108,69 @@ public class AuthController {
     @Operation(summary = "현재 로그인 사용자 조회")
     public ResponseEntity<CurrentUserResponse> me(@AuthenticationPrincipal Jwt jwt) {
         return ResponseEntity.ok(authenticationService.getCurrentUser(jwt.getSubject()));
+    }
+
+    @PatchMapping("/me")
+    @Operation(summary = "프로필 수정 (닉네임/언어)")
+    public ResponseEntity<CurrentUserResponse> updateProfile(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody UpdateProfileRequest request
+    ) {
+        return ResponseEntity.ok(authenticationService.updateProfile(jwt.getSubject(), request));
+    }
+
+    @PutMapping(value = "/me/profile-image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "프로필 사진 교체 (multipart: image, jpeg/png/webp 10MB 이하)")
+    public ResponseEntity<CurrentUserResponse> updateProfileImage(
+            @AuthenticationPrincipal Jwt jwt,
+            @RequestPart("image") MultipartFile image
+    ) {
+        return ResponseEntity.ok(authenticationService.updateProfileImage(jwt.getSubject(), image));
+    }
+
+    @DeleteMapping("/me/profile-image")
+    @Operation(summary = "프로필 사진 삭제 (기본 이미지로)")
+    public ResponseEntity<CurrentUserResponse> removeProfileImage(@AuthenticationPrincipal Jwt jwt) {
+        return ResponseEntity.ok(authenticationService.removeProfileImage(jwt.getSubject()));
+    }
+
+    @PutMapping("/notifications")
+    @Operation(summary = "알림 설정 전체 저장")
+    public ResponseEntity<CurrentUserResponse> updateNotificationSettings(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody NotificationSettingsRequest request
+    ) {
+        return ResponseEntity.ok(authenticationService.updateNotificationSettings(jwt.getSubject(), request));
+    }
+
+    @PatchMapping("/password")
+    @Operation(summary = "로그인 상태 비밀번호 변경")
+    public ResponseEntity<Void> changePassword(
+            @AuthenticationPrincipal Jwt jwt,
+            @Valid @RequestBody ChangePasswordRequest request,
+            HttpServletResponse response
+    ) {
+        authenticationService.changePassword(jwt.getSubject(), request, response);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/password-resets")
+    @Operation(summary = "비밀번호 재설정 인증번호 요청")
+    @SecurityRequirements
+    public ResponseEntity<Void> requestPasswordReset(
+            @Valid @RequestBody PasswordResetRequest request
+    ) {
+        passwordResetService.requestReset(request.email());
+        return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/password-resets/confirm")
+    @Operation(summary = "비밀번호 재설정 인증번호 확인 및 새 비밀번호 설정")
+    @SecurityRequirements
+    public ResponseEntity<Void> confirmPasswordReset(
+            @Valid @RequestBody PasswordResetConfirmRequest request
+    ) {
+        passwordResetService.confirmReset(request.email(), request.code(), request.newPassword());
+        return ResponseEntity.noContent().build();
     }
 }

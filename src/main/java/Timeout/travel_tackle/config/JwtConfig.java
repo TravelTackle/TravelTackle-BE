@@ -1,5 +1,6 @@
 package Timeout.travel_tackle.config;
 
+import Timeout.travel_tackle.auth.jwt.JwtProperties;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -51,19 +52,5 @@ public class JwtConfig {
                 .build();
         decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(properties.issuer()));
         return decoder;
-    }
-
-    public record JwtProperties(
-            String secret,
-            Duration accessTokenTtl, //만료시간
-            Duration refreshTokenTtl, //만료 시간
-            boolean secureCookie,
-            String issuer
-    ) {
-        public JwtProperties {
-            if (secret == null || secret.getBytes(StandardCharsets.UTF_8).length < 32) {
-                throw new IllegalArgumentException("JWT_SECRET must be at least 32 bytes");
-            }
-        }
     }
 }

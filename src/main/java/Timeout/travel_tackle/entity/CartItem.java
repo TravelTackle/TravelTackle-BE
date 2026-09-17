@@ -37,16 +37,33 @@ public class CartItem {
     @Column(name = "cached_region_code")
     private String cachedRegionCode; //관광지 지역 코드
 
+    @Column(name = "cached_content_type_id")
+    private String cachedContentTypeId; //TourAPI 콘텐츠 타입 (12 관광지, 32 숙박, 39 음식점 등, 테마 분류용)
+
+    @Column(name = "cached_lcls_systm1")
+    private String cachedLclsSystm1; //분류체계 대분류 (취향 매칭용)
+
+    @Column(name = "cached_lcls_systm2")
+    private String cachedLclsSystm2; //분류체계 중분류
+
+    @Column(name = "cached_lcls_systm3")
+    private String cachedLclsSystm3; //분류체계 소분류
+
     @CreationTimestamp
     @Column(name = "added_at", nullable = false, updatable = false)
     private LocalDateTime addedAt; //바구니에 담은 시간
 
     public CartItem(User user, String tourApiContentId, String cachedTitle,
-                    String cachedImageUrl, String cachedRegionCode) {
+                    String cachedImageUrl, String cachedRegionCode, String cachedContentTypeId,
+                    String cachedLclsSystm1, String cachedLclsSystm2, String cachedLclsSystm3) {
         this.user = user;
         this.tourApiContentId = tourApiContentId;
         this.cachedTitle = cachedTitle;
         this.cachedImageUrl = cachedImageUrl;
         this.cachedRegionCode = cachedRegionCode;
+        this.cachedContentTypeId = cachedContentTypeId;
+        this.cachedLclsSystm1 = cachedLclsSystm1;
+        this.cachedLclsSystm2 = cachedLclsSystm2;
+        this.cachedLclsSystm3 = cachedLclsSystm3;
     }
 }

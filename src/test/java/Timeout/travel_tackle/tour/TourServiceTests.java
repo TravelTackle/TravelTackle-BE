@@ -1,7 +1,9 @@
 package Timeout.travel_tackle.tour;
 
 import Timeout.travel_tackle.global.exception.CustomException;
-import Timeout.travel_tackle.tour.TourApiClient.TourApiResult;
+import Timeout.travel_tackle.tour.client.TourApiClient;
+import Timeout.travel_tackle.tour.client.TourApiClient.TourApiResult;
+import Timeout.travel_tackle.tour.service.TourService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;

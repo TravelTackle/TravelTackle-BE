@@ -47,6 +47,12 @@ public class Trip {
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt; //계획 생성 날짜
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt; //제목/일차/일정 등 실제 내용이 수정된 시각 (단순 조회로는 갱신되지 않음)
+
+    @Column(name = "feedback_notification_dismissed_at")
+    private LocalDateTime feedbackNotificationDismissedAt; //참견 알림함 지운 시각 — 이 시각 이후 새 참견이 없으면 모아보기에서 숨김
+
     public Trip(User user, String title, LocalDate startDate, LocalDate endDate) {
         if (endDate.isBefore(startDate)) {
             throw new CustomException(ErrorCode.INVALID_TRIP_DATE_RANGE);
@@ -64,6 +70,12 @@ public class Trip {
         this.title = title;
         this.startDate = startDate;
         this.endDate = endDate;
+        touch();
+    }
+
+    // Day/일정처럼 Trip 소유가 아닌 연관 엔티티가 바뀔 때, 실제 내용 수정 시점을 명시적으로 기록하기 위해 호출한다.
+    public void touch() {
+        this.updatedAt = LocalDateTime.now();
     }
 
     public void publish() {
@@ -76,5 +88,9 @@ public class Trip {
 
     public void complete() {
         this.status = TripStatus.COMPLETED;
+    }
+
+    public void dismissFeedbackNotifications() {
+        this.feedbackNotificationDismissedAt = LocalDateTime.now();
     }
 }

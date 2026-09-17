@@ -11,4 +11,10 @@ public class CustomException extends RuntimeException {
         super(errorCode.getMessage());
         this.errorCode = errorCode;
     }
+
+    // 응답 message 에 상황별 정보(예: 비어 있는 일차 번호)를 실어야 할 때만 사용
+    public CustomException(ErrorCode errorCode, String message) {
+        super(message);
+        this.errorCode = errorCode;
+    }
 }
