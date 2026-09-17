@@ -80,12 +80,13 @@ public class TripFeedbackService {
 
         List<TripFeedbackRecommendation> recs = buildRecommendations(feedback, request.recommendations());
         recommendationRepository.saveAll(recs);
-        notificationService.notifyFeedback(toNotificationCommand(trip, author, feedback, tripDay, tripItem));
+        notificationService.notifyFeedback(toNotificationCommand(trip.getUser().getId(), trip, author, feedback, tripDay, tripItem));
 
         return toResponse(feedback, recs, 0L, false);
     }
 
-    private FeedbackNotificationCommand toNotificationCommand(Trip trip, User author, TripFeedback feedback,
+    // receiver: 참견 알림은 계획 주인, 좋아요 알림은 참견 작성자. actor: 행동한 사람
+    private FeedbackNotificationCommand toNotificationCommand(UUID receiverId, Trip trip, User actor, TripFeedback feedback,
                                                               TripDay tripDay, TripItem tripItem) {
         NotificationTarget target = NotificationTarget.TRIP;
         Integer dayNumber = null; // int 와 null 을 삼항으로 섞으면 언박싱 NPE 가 나므로 분기로 나눈다
@@ -99,7 +100,7 @@ public class TripFeedbackService {
         String thumbnailUrl = tripPhotoRepository.findThumbnailRowsByTripIds(List.of(trip.getId())).stream()
                 .findFirst().map(row -> (String) row[1]).orElse(null);
         return new FeedbackNotificationCommand(
-                trip.getUser().getId(), author.getId(), author.getName(),
+                receiverId, actor.getId(), actor.getName(),
                 trip.getId(), trip.getTitle(), thumbnailUrl,
                 feedback.getId(), target, dayNumber,
                 tripItem != null ? tripItem.getCachedTitle() : null,
@@ -205,6 +206,10 @@ public class TripFeedbackService {
             throw new CustomException(ErrorCode.FEEDBACK_ALREADY_LIKED);
         }
         feedbackLikeRepository.save(new TripFeedbackLike(feedback, user));
+        if (feedback.getAuthor() != null) { // 탈퇴로 익명화된 참견은 받을 사람이 없다
+            notificationService.notifyFeedbackLike(toNotificationCommand(feedback.getAuthor().getId(),
+                    feedback.getTrip(), user, feedback, feedback.getTripDay(), feedback.getTripItem()));
+        }
         return toResponse(feedback, recommendationRepository.findAllByFeedbackId(feedbackId), countLikes(feedbackId), true);
     }
 

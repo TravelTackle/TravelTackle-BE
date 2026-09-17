@@ -132,6 +132,50 @@ class NotificationServiceTests {
     }
 
     @Test
+    void likingFeedbackNotifiesItsAuthorOnceWithFeedbackContext() {
+        UUID feedbackId = feedbackService.create(reviewer.getId(), tripId,
+                new CreateFeedbackRequest("경포대 일몰 추천", null, itemId, List.of())).id();
+        User liker = userRepository.save(new User("liker-" + UUID.randomUUID() + "@noti.test", "좋아요러", "KR"));
+
+        feedbackService.likeFeedback(liker.getId(), tripId, feedbackId);
+
+        List<NotificationResponse> list = notificationService.getNotifications(reviewer.getId(), PageRequest.of(0, 10)).content();
+        assertEquals(1, list.size());
+        NotificationResponse n = list.get(0);
+        assertEquals(NotificationType.FEEDBACK_LIKE, n.type());
+        assertEquals("좋아요러", n.actor().name());
+        assertEquals(tripId, n.trip().id());
+        assertEquals(feedbackId, n.feedback().id());
+        assertEquals(NotificationTarget.ITEM, n.feedback().target());
+        assertEquals("경포대", n.feedback().itemTitle());
+        assertEquals("경포대 일몰 추천", n.feedback().preview());
+
+        // 취소 후 다시 눌러도 알림은 하나
+        feedbackService.unlikeFeedback(liker.getId(), tripId, feedbackId);
+        feedbackService.likeFeedback(liker.getId(), tripId, feedbackId);
+        assertEquals(1, notificationService.getUnreadCount(reviewer.getId()).unreadCount());
+
+        // 계획 주인이 눌러도 참견 작성자에게 간다 (주인 쪽에는 참견 알림 1개만)
+        feedbackService.likeFeedback(owner.getId(), tripId, feedbackId);
+        assertEquals(2, notificationService.getUnreadCount(reviewer.getId()).unreadCount());
+        assertEquals(1, notificationService.getUnreadCount(owner.getId()).unreadCount());
+    }
+
+    @Test
+    void likeNotificationSkipsSelfLikeAndFollowsFeedbackSetting() {
+        UUID feedbackId = feedbackService.create(reviewer.getId(), tripId,
+                new CreateFeedbackRequest("내 참견", null, null, List.of())).id();
+
+        feedbackService.likeFeedback(reviewer.getId(), tripId, feedbackId);
+        assertEquals(0, notificationService.getUnreadCount(reviewer.getId()).unreadCount());
+
+        reviewer.updateNotificationSettings(true, false, true, false); // 참견 알림 끔
+        entityManager.flush();
+        feedbackService.likeFeedback(owner.getId(), tripId, feedbackId);
+        assertEquals(0, notificationService.getUnreadCount(reviewer.getId()).unreadCount());
+    }
+
+    @Test
     void scrapCreatesNotificationWithoutFeedbackBlockAndFollowsFeedbackSetting() {
         savedTripService.save(reviewer.getId(), tripId, FeedItemType.PLAN);
 

@@ -2,6 +2,7 @@ package Timeout.travel_tackle.notification.repository;
 
 import Timeout.travel_tackle.entity.Notification;
 import Timeout.travel_tackle.entity.User;
+import Timeout.travel_tackle.entity.Enum.NotificationType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -19,6 +20,8 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     long countByUserIdAndReadFalse(UUID userId);
 
     Optional<Notification> findByIdAndUserId(UUID id, UUID userId);
+
+    boolean existsByUserIdAndTypeAndActorIdAndFeedbackId(UUID userId, NotificationType type, UUID actorId, UUID feedbackId);
 
     // 벌크 UPDATE 뒤 같은 트랜잭션에서 조회해도 최신 값이 보이도록 영속성 컨텍스트를 비운다
     @Modifying(clearAutomatically = true, flushAutomatically = true)
