@@ -33,8 +33,9 @@ public class Notification {
     @JoinColumn(name = "user_id", nullable = false)
     private User user; // 받는 사람
 
+    // MariaDB 네이티브 enum 이면 타입 추가 때마다 ALTER 가 필요하므로 varchar 로 고정한다
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "varchar(32)")
     private NotificationType type;
 
     @Column(name = "actor_id")
@@ -93,6 +94,17 @@ public class Notification {
         n.dayNumber = dayNumber;
         n.itemTitle = itemTitle;
         n.preview = preview;
+        return n;
+    }
+
+    /** 참견 좋아요. 받는 사람은 참견 작성자이고, 어떤 참견인지 알 수 있게 참견 스냅샷을 함께 둔다. */
+    public static Notification feedbackLike(User user, UUID actorId, String actorName,
+                                            UUID tripId, String tripTitle, String thumbnailUrl,
+                                            UUID feedbackId, NotificationTarget target, Integer dayNumber,
+                                            String itemTitle, String preview) {
+        Notification n = feedback(user, actorId, actorName, tripId, tripTitle, thumbnailUrl,
+                feedbackId, target, dayNumber, itemTitle, preview);
+        n.type = NotificationType.FEEDBACK_LIKE;
         return n;
     }
 
