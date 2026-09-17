@@ -10,9 +10,12 @@ import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -29,11 +32,13 @@ public class ChatService {
     private final ChatClient chatClient;
     private final UserPreferenceRepository userPreferenceRepository;
     private final String defaultSystemPrompt;
+    private final String topicGuard; // 여행 외 질문 차단 규칙. yaml 과 별개로 항상 맨 앞에 붙는다
 
     public ChatService(ChatClient.Builder chatClientBuilder,
                        TourismTools tourismTools,
                        UserPreferenceRepository userPreferenceRepository,
-                       @Value("${app.chat.default-system-prompt:}") String defaultSystemPrompt) {
+                       @Value("${app.chat.default-system-prompt:}") String defaultSystemPrompt,
+                       @Value("classpath:prompts/chat-topic-guard.txt") Resource topicGuard) throws IOException {
         ChatMemory chatMemory = MessageWindowChatMemory.builder()
                 .chatMemoryRepository(new InMemoryChatMemoryRepository())
                 .maxMessages(MAX_MEMORY_MESSAGES)
@@ -44,6 +49,7 @@ public class ChatService {
                 .build();
         this.userPreferenceRepository = userPreferenceRepository;
         this.defaultSystemPrompt = defaultSystemPrompt;
+        this.topicGuard = topicGuard.getContentAsString(StandardCharsets.UTF_8);
     }
 
     /**
@@ -53,7 +59,8 @@ public class ChatService {
     public String chat(String subject, String message, String conversationId, String language) {
         UUID userId = UuidConverter.fromSubject(subject);
         String threadId = StringUtils.hasText(conversationId) ? conversationId : subject;
-        String systemPrompt = defaultSystemPrompt
+        String systemPrompt = topicGuard + "\n"
+                + defaultSystemPrompt
                 + buildLanguageDirective(language)
                 + buildPreferenceContext(userId);
 
