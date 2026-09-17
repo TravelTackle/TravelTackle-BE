@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -89,6 +90,30 @@ class NotificationApiTests {
         mockMvc.perform(get("/api/notifications/unread-count").cookie(cookie)).andExpect(jsonPath("$.unreadCount").value(0));
         Cookie otherCookie = new Cookie("access_token", jwtService.createAccessToken(other));
         mockMvc.perform(get("/api/notifications/unread-count").cookie(otherCookie)).andExpect(jsonPath("$.unreadCount").value(1));
+    }
+
+    @Test
+    void deleteAllRemovesOnlyMyNotifications() throws Exception {
+        User owner = userRepository.save(new User("del-owner@noti.test", "주인", "KR"));
+        User other = userRepository.save(new User("del-other@noti.test", "제3자", "KR"));
+        User reviewer = userRepository.save(new User("del-reviewer@noti.test", "리뷰어", "KR"));
+        UUID tripId = publishedTrip(owner);
+        UUID otherTripId = publishedTrip(other);
+        feedbackService.create(reviewer.getId(), tripId, new CreateFeedbackRequest("하나", null, null, List.of()));
+        feedbackService.create(reviewer.getId(), tripId, new CreateFeedbackRequest("둘", null, null, List.of()));
+        feedbackService.create(reviewer.getId(), otherTripId, new CreateFeedbackRequest("남의 것", null, null, List.of()));
+        Cookie cookie = new Cookie("access_token", jwtService.createAccessToken(owner));
+
+        mockMvc.perform(delete("/api/notifications").cookie(cookie)).andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/notifications").cookie(cookie))
+                .andExpect(jsonPath("$.unreadCount").value(0))
+                .andExpect(jsonPath("$.content").isEmpty());
+        // 지울 알림이 없어도 204
+        mockMvc.perform(delete("/api/notifications").cookie(cookie)).andExpect(status().isNoContent());
+        Cookie otherCookie = new Cookie("access_token", jwtService.createAccessToken(other));
+        mockMvc.perform(get("/api/notifications/unread-count").cookie(otherCookie)).andExpect(jsonPath("$.unreadCount").value(1));
+        mockMvc.perform(delete("/api/notifications")).andExpect(status().isUnauthorized());
     }
 
     @Test

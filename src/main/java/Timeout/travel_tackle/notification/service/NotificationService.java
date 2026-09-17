@@ -125,7 +125,14 @@ public class NotificationService {
         }
     }
 
-    // 다른 탭이 열려 있을 수 있으니 읽음 처리 뒤 종 아이콘 숫자도 밀어준다
+    @Transactional
+    public void deleteAll(UUID userId) {
+        notificationRepository.deleteAllByUserId(userId);
+        // 지운 게 없어도 보낸다: 다른 탭에 남은 오래된 배지를 0 으로 맞춘다
+        pushUnreadCountAfterCommit(userId);
+    }
+
+    // 다른 탭이 열려 있을 수 있으니 읽음·삭제 처리 뒤 종 아이콘 숫자도 밀어준다
     private void pushUnreadCountAfterCommit(UUID userId) {
         afterCommit(() -> sseRegistry.send(userId, EVENT_UNREAD_COUNT,
                 new UnreadCountResponse(notificationRepository.countByUserIdAndReadFalse(userId))));

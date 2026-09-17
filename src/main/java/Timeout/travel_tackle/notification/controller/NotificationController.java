@@ -13,6 +13,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -26,7 +27,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("/api/notifications")
 @RequiredArgsConstructor
-@Tag(name = "Notification", description = "알림 API — 목록/미읽음 수/읽음 처리 + SSE 실시간 푸시")
+@Tag(name = "Notification", description = "알림 API — 목록/미읽음 수/읽음 처리/전체 삭제 + SSE 실시간 푸시")
 public class NotificationController {
 
     private static final int MAX_PAGE_SIZE = 50;
@@ -66,9 +67,16 @@ public class NotificationController {
         return ResponseEntity.noContent().build();
     }
 
+    @DeleteMapping
+    @Operation(summary = "내 알림 전체 삭제", description = "지울 알림이 없어도 204. 커밋 뒤 SSE unread-count 이벤트로 0 을 보낸다")
+    public ResponseEntity<Void> deleteAll(@AuthenticationPrincipal Jwt jwt) {
+        notificationService.deleteAll(UuidConverter.fromSubject(jwt.getSubject()));
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping(value = "/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "실시간 알림 SSE 연결",
-            description = "event: notification (새 알림 + unreadCount), unread-count (읽음 처리 후 갱신), heartbeat (25초)")
+            description = "event: notification (새 알림 + unreadCount), unread-count (읽음·삭제 처리 후 갱신), heartbeat (25초)")
     public SseEmitter stream(@AuthenticationPrincipal Jwt jwt) {
         return sseRegistry.connect(UuidConverter.fromSubject(jwt.getSubject()));
     }
