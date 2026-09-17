@@ -3,6 +3,7 @@ package Timeout.travel_tackle.notification.service;
 import Timeout.travel_tackle.auth.repository.UserRepository;
 import Timeout.travel_tackle.entity.Notification;
 import Timeout.travel_tackle.entity.User;
+import Timeout.travel_tackle.entity.Enum.NotificationType;
 import Timeout.travel_tackle.global.exception.CustomException;
 import Timeout.travel_tackle.global.exception.ErrorCode;
 import Timeout.travel_tackle.notification.dto.FeedbackNotificationCommand;
@@ -58,6 +59,24 @@ public class NotificationService {
                 preview(command.content())));
     }
 
+    /**
+     * 참견 좋아요 알림. command.receiverId 는 참견 작성자다. 좋아요를 취소했다가 다시 눌러도
+     * 같은 사람·같은 참견 알림은 한 번만 만든다 (토글 반복으로 알림이 쌓이지 않게).
+     */
+    @Transactional
+    public void notifyFeedbackLike(FeedbackNotificationCommand command) {
+        User receiver = receiverAcceptingActivityNotifications(command.receiverId(), command.actorId());
+        if (receiver == null || notificationRepository.existsByUserIdAndTypeAndActorIdAndFeedbackId(
+                receiver.getId(), NotificationType.FEEDBACK_LIKE, command.actorId(), command.feedbackId())) {
+            return;
+        }
+        saveAndPush(Notification.feedbackLike(
+                receiver, command.actorId(), command.actorName(),
+                command.tripId(), command.tripTitle(), command.thumbnailUrl(),
+                command.feedbackId(), command.target(), command.dayNumber(), command.itemTitle(),
+                preview(command.content())));
+    }
+
     /** 스크랩 알림. 별도 설정 없이 참견 알림 설정(notifyFeedback)을 함께 따른다. */
     @Transactional
     public void notifyScrap(ScrapNotificationCommand command) {
@@ -69,9 +88,9 @@ public class NotificationService {
                 command.tripId(), command.tripTitle(), command.thumbnailUrl()));
     }
 
-    // 받는 사람이 없거나, 본인 행동이거나, 활동 알림(참견·스크랩)을 꺼뒀으면 null
+    // 받는 사람이 없거나, 본인 행동이거나, 활동 알림(참견·스크랩·좋아요)을 꺼뒀으면 null
     private User receiverAcceptingActivityNotifications(UUID receiverId, UUID actorId) {
-        if (receiverId.equals(actorId)) {
+        if (receiverId == null || receiverId.equals(actorId)) {
             return null;
         }
         User receiver = userRepository.findById(receiverId).orElse(null);
