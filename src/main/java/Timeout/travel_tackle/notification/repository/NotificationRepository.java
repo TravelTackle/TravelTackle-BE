@@ -25,6 +25,11 @@ public interface NotificationRepository extends JpaRepository<Notification, UUID
     @Query("update Notification n set n.read = true where n.user.id = :userId and n.read = false")
     int markAllReadByUserId(@Param("userId") UUID userId);
 
+    // 삭제된 행이 같은 트랜잭션의 이후 조회(미읽음 수)에 남아 보이지 않도록 영속성 컨텍스트를 비운다
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from Notification n where n.user.id = :userId")
+    int deleteAllByUserId(@Param("userId") UUID userId);
+
     void deleteAllByUser(User user);
 
     void deleteAllByTripId(UUID tripId);

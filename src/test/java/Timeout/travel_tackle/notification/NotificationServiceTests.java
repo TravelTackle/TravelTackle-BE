@@ -10,6 +10,8 @@ import Timeout.travel_tackle.global.exception.CustomException;
 import Timeout.travel_tackle.global.exception.ErrorCode;
 import Timeout.travel_tackle.notification.dto.NotificationPageResponse;
 import Timeout.travel_tackle.notification.dto.NotificationPushEvent;
+import Timeout.travel_tackle.notification.dto.ScrapNotificationCommand;
+import Timeout.travel_tackle.notification.dto.UnreadCountResponse;
 import Timeout.travel_tackle.notification.dto.NotificationResponse;
 import Timeout.travel_tackle.notification.repository.NotificationRepository;
 import Timeout.travel_tackle.notification.service.NotificationService;
@@ -46,6 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
@@ -192,6 +195,26 @@ class NotificationServiceTests {
     }
 
     @Test
+    void deleteAllRemovesOnlyTheUsersNotifications() {
+        feedbackService.create(reviewer.getId(), tripId, new CreateFeedbackRequest("하나", null, null, List.of()));
+        feedbackService.create(reviewer.getId(), tripId, new CreateFeedbackRequest("둘", null, null, List.of()));
+        notificationService.markRead(owner.getId(),
+                notificationService.getNotifications(owner.getId(), PageRequest.of(0, 10)).content().get(0).id());
+        // 리뷰어가 받은 스크랩 알림 (다른 사람 알림은 남아야 한다)
+        LocalDate date = LocalDate.of(2026, 8, 1);
+        UUID reviewerTripId = tripService.createTrip(reviewer.getId(), new CreateTripRequest("리뷰어 여행", date, date)).id();
+        notificationService.notifyScrap(new ScrapNotificationCommand(
+                reviewer.getId(), owner.getId(), owner.getName(), reviewerTripId, "리뷰어 여행", null));
+
+        notificationService.deleteAll(owner.getId());
+
+        // 읽은 알림까지 모두 지워진다
+        assertEquals(0, notificationService.getUnreadCount(owner.getId()).unreadCount());
+        assertTrue(notificationService.getNotifications(owner.getId(), PageRequest.of(0, 10)).content().isEmpty());
+        assertEquals(1, notificationService.getUnreadCount(reviewer.getId()).unreadCount());
+    }
+
+    @Test
     void deletingTripRemovesItsNotifications() {
         feedbackService.create(reviewer.getId(), tripId, new CreateFeedbackRequest("참견", null, null, List.of()));
         entityManager.flush();
@@ -225,6 +248,21 @@ class NotificationServiceTests {
             TestTransaction.flagForCommit();
             TestTransaction.end();
             verify(sseRegistry).send(eq(owner.getId()), eq(NotificationService.EVENT_UNREAD_COUNT), any());
+
+            // 전체 삭제도 커밋 뒤에 미읽음 0 을 보낸다
+            TestTransaction.start();
+            feedbackService.create(reviewer.getId(), tripId, new CreateFeedbackRequest("삭제될 참견", null, null, List.of()));
+            TestTransaction.flagForCommit();
+            TestTransaction.end();
+            clearInvocations(sseRegistry);
+            TestTransaction.start();
+            notificationService.deleteAll(owner.getId());
+            verify(sseRegistry, never()).send(any(), anyString(), any());
+            TestTransaction.flagForCommit();
+            TestTransaction.end();
+            ArgumentCaptor<Object> countPayload = ArgumentCaptor.forClass(Object.class);
+            verify(sseRegistry).send(eq(owner.getId()), eq(NotificationService.EVENT_UNREAD_COUNT), countPayload.capture());
+            assertEquals(0, ((UnreadCountResponse) countPayload.getValue()).unreadCount());
         } finally {
             cleanUpCommittedFixtures();
         }
