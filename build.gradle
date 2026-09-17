@@ -42,7 +42,8 @@ dependencies {
 	implementation 'software.amazon.awssdk:s3'
     implementation 'org.springframework.ai:spring-ai-starter-model-openai'
     compileOnly 'org.projectlombok:lombok'
-	runtimeOnly 'com.h2database:h2'
+	runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+	runtimeOnly 'com.h2database:h2' // 테스트(인메모리)용
 	// Apple Silicon용 DNS 네이티브 모듈. 버전은 기존 Netty 의존성 관리에 맞춘다.
 	runtimeOnly 'io.netty:netty-resolver-dns-native-macos::osx-aarch_64'
 	annotationProcessor 'org.projectlombok:lombok'

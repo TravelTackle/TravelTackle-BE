@@ -107,10 +107,19 @@ When adding a new `@Entity`, run `./gradlew compileJava` to produce its correspo
 
 ### Data layer
 
-H2 runs in-memory (`jdbc:h2:mem:travel_tackle`); there is no external database to configure for local development or tests. JPA DDL is `create` (rebuilt every boot). H2 console at `/h2-console`.
+**MariaDB** for local development and deployment (H2 stays only for tests via `src/test/resources/application.properties`). The datasource comes from `DB_URL` / `DB_USERNAME` / `DB_PASSWORD` (defaults `jdbc:mariadb://localhost:3306/travel_tackle`, `travel`/`travel`); the driver is inferred from the URL. Locally use an existing MariaDB (Homebrew) or `docker compose up -d` (see `docker-compose.yml`, utf8mb4). Create the DB/user once:
+
+```sql
+CREATE DATABASE travel_tackle CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'travel'@'localhost' IDENTIFIED BY 'travel';
+GRANT ALL PRIVILEGES ON travel_tackle.* TO 'travel'@'localhost';
+```
+
+JPA DDL is still `update` (schema created/extended on boot; new NOT NULL columns need `@ColumnDefault`, see entity conventions) — Flyway is the planned replacement. Demo data: load `demo_seed_v4.sql` with `mariadb -u travel -ptravel travel_tackle < demo_seed_v4.sql` after the first boot.
 
 ## Required environment
 
+- **Database**: `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` (defaults point at local MariaDB `travel_tackle` as `travel`/`travel`).
 - **`JWT_SECRET`** (required, must be ≥ 32 bytes) — the app fails to start without it. Tests supply it via `src/test/resources/application.properties`.
 - Optional/defaulted: `JWT_ACCESS_TOKEN_SECONDS` (900), `JWT_REFRESH_TOKEN_DAYS` (14), `AUTH_COOKIE_SECURE` (false), `FRONTEND_ORIGIN` (`http://localhost:5173`, used by CORS), `OAUTH_SUCCESS_REDIRECT_URL`, `OAUTH_FAILURE_REDIRECT_URL`.
 - Social login: `social.login.enabled=true` plus `KAKAO_CLIENT_ID`/`KAKAO_CLIENT_SECRET` and/or `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`.
