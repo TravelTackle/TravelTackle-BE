@@ -10,6 +10,9 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+import org.springframework.web.servlet.NoHandlerFoundException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -67,6 +70,22 @@ public class GlobalExceptionHandler {
             }
         }
         return false;
+    }
+
+    // 매핑 없는 경로(봇 스캔·오타·favicon)는 서버 오류가 아니라 404. Sentry 에 보내지 않는다
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNotFound(Exception exception, HttpServletRequest request) {
+        ErrorCode errorCode = ErrorCode.RESOURCE_NOT_FOUND;
+        log.debug("No handler for path={}", request.getRequestURI());
+        return ResponseEntity.status(errorCode.getStatus()).body(ErrorResponse.of(errorCode, request.getRequestURI()));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ErrorResponse> handleMethodNotAllowed(HttpRequestMethodNotSupportedException exception,
+                                                                HttpServletRequest request) {
+        ErrorCode errorCode = ErrorCode.METHOD_NOT_ALLOWED;
+        log.debug("Method not allowed: {} {}", request.getMethod(), request.getRequestURI());
+        return ResponseEntity.status(errorCode.getStatus()).body(ErrorResponse.of(errorCode, request.getRequestURI()));
     }
 
     @ExceptionHandler(CustomException.class)

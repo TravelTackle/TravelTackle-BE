@@ -75,6 +75,6 @@ class PublicUserProfileRepositoryTests {
         tripRecordRepository.save(new TripRecord(privateTrip, "비공개 기록", "내용")); // 계획이 비공개면 기록도 세면 안 됨
         tripRecordRepository.flush();
 
-        assertEquals(1, tripRecordRepository.countByTrip_UserAndTrip_PublishedTrue(owner));
+        assertEquals(1, tripRecordRepository.countPublishedByOwner(owner));
     }
 }

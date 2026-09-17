@@ -32,5 +32,7 @@ public interface TripRecordRepository extends JpaRepository<TripRecord, UUID> {
     List<TripRecord> findAllByTripIdIn(@Param("tripIds") Collection<UUID> tripIds);
 
     // 공개 프로필의 "기록 수" — 피드에 노출되는 기록(계획이 공개된 경우)만 센다
-    long countByTrip_UserAndTrip_PublishedTrue(User user);
+    // 파생 쿼리의 밑줄 표기(Trip_User)는 ArchUnit camelCase 규칙에 걸려 JPQL 로 명시한다
+    @Query("select count(r) from TripRecord r where r.trip.user = :user and r.trip.published = true")
+    long countPublishedByOwner(@Param("user") User user);
 }
