@@ -146,7 +146,7 @@ class TripServiceTests {
         TripDetailResponse trip = createTripWithDays(3);
         addItem(trip.id(), trip.days().get(0).id(), "1"); // Day 1 만 채움
 
-        CustomException ex = assertThrows(CustomException.class, () -> tripService.publishTrip(userId, trip.id()));
+        CustomException ex = assertThrows(CustomException.class, () -> tripService.publishTrip(userId, trip.id(), null));
 
         assertEquals(ErrorCode.TRIP_PUBLISH_REQUIRES_ITEMS, ex.getErrorCode());
         assertTrue(ex.getMessage().contains("Day 2, Day 3"), ex.getMessage());
@@ -159,9 +159,26 @@ class TripServiceTests {
         addItem(trip.id(), trip.days().get(0).id(), "1");
         addItem(trip.id(), trip.days().get(1).id(), "2");
 
-        tripService.publishTrip(userId, trip.id());
+        tripService.publishTrip(userId, trip.id(), null);
 
         assertTrue(tripService.getTripDetail(userId, trip.id()).published());
+    }
+
+    @Test
+    void publishWithCommentStoresItAndPublishAgainWithoutBodyKeepsIt() {
+        TripDetailResponse trip = createTripWithDays(1);
+        addItem(trip.id(), trip.days().getFirst().id(), "1");
+
+        tripService.publishTrip(userId, trip.id(), "다시 가고 싶은 코스예요");
+        assertEquals("다시 가고 싶은 코스예요", tripService.getTripDetail(userId, trip.id()).comment());
+
+        // body 없이(레거시 호출) 다시 게시해도 기존 코멘트는 그대로 유지
+        tripService.publishTrip(userId, trip.id(), null);
+        assertEquals("다시 가고 싶은 코스예요", tripService.getTripDetail(userId, trip.id()).comment());
+
+        // 이미 공개 중이어도 코멘트만 다시 넣으면 갱신된다
+        tripService.publishTrip(userId, trip.id(), "코멘트 수정");
+        assertEquals("코멘트 수정", tripService.getTripDetail(userId, trip.id()).comment());
     }
 
     @Test
@@ -170,7 +187,7 @@ class TripServiceTests {
         UUID dayId = trip.days().getFirst().id();
         TripItemResponse first = addItem(trip.id(), dayId, "1");
         TripItemResponse second = addItem(trip.id(), dayId, "2");
-        tripService.publishTrip(userId, trip.id());
+        tripService.publishTrip(userId, trip.id(), null);
 
         tripService.deleteTripItem(userId, trip.id(), dayId, second.id()); // 2개 -> 1개는 허용
 
@@ -191,7 +208,7 @@ class TripServiceTests {
         UUID day2 = trip.days().get(1).id();
         TripItemResponse only = addItem(trip.id(), day1, "1");
         addItem(trip.id(), day2, "2");
-        tripService.publishTrip(userId, trip.id());
+        tripService.publishTrip(userId, trip.id(), null);
 
         CustomException ex = assertThrows(CustomException.class, () ->
                 tripService.moveTripItem(userId, trip.id(), only.id(), new MoveTripItemRequest(day2, null)));
@@ -205,7 +222,7 @@ class TripServiceTests {
     void publishedTripRejectsDateChangeButAllowsTitleChange() {
         TripDetailResponse trip = createTripWithDays(1);
         addItem(trip.id(), trip.days().getFirst().id(), "1");
-        tripService.publishTrip(userId, trip.id());
+        tripService.publishTrip(userId, trip.id(), null);
         LocalDate start = LocalDate.of(2026, 7, 1);
 
         tripService.updateTrip(userId, trip.id(), new UpdateTripRequest("새 제목", start, start));

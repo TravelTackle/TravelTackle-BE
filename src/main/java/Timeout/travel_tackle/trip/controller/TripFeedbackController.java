@@ -108,6 +108,29 @@ public class TripFeedbackController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/api/trips/{tripId}/feedback/{feedbackId}/like")
+    @Operation(summary = "참견에 좋아요 남기기")
+    public ResponseEntity<FeedbackResponse> like(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID tripId,
+            @PathVariable UUID feedbackId
+    ) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(feedbackService.likeFeedback(userId, tripId, feedbackId));
+    }
+
+    @DeleteMapping("/api/trips/{tripId}/feedback/{feedbackId}/like")
+    @Operation(summary = "참견 좋아요 취소")
+    public ResponseEntity<FeedbackResponse> unlike(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID tripId,
+            @PathVariable UUID feedbackId
+    ) {
+        UUID userId = UUID.fromString(jwt.getSubject());
+        return ResponseEntity.ok(feedbackService.unlikeFeedback(userId, tripId, feedbackId));
+    }
+
     @PostMapping("/api/trips/{tripId}/feedback/recommendations/{recommendationId}/cart")
     @Operation(summary = "피드백 추천 장소를 내 카트에 담기 (Trip 소유자 전용)")
     public ResponseEntity<CartItemResponse> addRecommendationToCart(

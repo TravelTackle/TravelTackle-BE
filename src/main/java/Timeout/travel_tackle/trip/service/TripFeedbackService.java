@@ -6,6 +6,7 @@ import Timeout.travel_tackle.cart.service.CartService.CartItemResponse;
 import Timeout.travel_tackle.entity.Trip;
 import Timeout.travel_tackle.entity.TripDay;
 import Timeout.travel_tackle.entity.TripFeedback;
+import Timeout.travel_tackle.entity.TripFeedbackLike;
 import Timeout.travel_tackle.entity.TripFeedbackRecommendation;
 import Timeout.travel_tackle.entity.TripItem;
 import Timeout.travel_tackle.entity.User;
@@ -23,6 +24,7 @@ import Timeout.travel_tackle.trip.dto.FeedbackResponse;
 import Timeout.travel_tackle.trip.dto.ReceivedFeedbackSummary;
 import Timeout.travel_tackle.trip.dto.UpdateFeedbackRequest;
 import Timeout.travel_tackle.trip.repository.TripDayRepository;
+import Timeout.travel_tackle.trip.repository.TripFeedbackLikeRepository;
 import Timeout.travel_tackle.trip.repository.TripFeedbackRecommendationRepository;
 import Timeout.travel_tackle.trip.repository.TripFeedbackRepository;
 import Timeout.travel_tackle.trip.repository.TripItemRepository;
@@ -36,8 +38,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -48,6 +52,7 @@ public class TripFeedbackService {
     private final TripDayRepository tripDayRepository;
     private final TripItemRepository tripItemRepository;
     private final TripFeedbackRepository feedbackRepository;
+    private final TripFeedbackLikeRepository feedbackLikeRepository;
     private final TripFeedbackRecommendationRepository recommendationRepository;
     private final UserRepository userRepository;
     private final TourService tourService;
@@ -77,7 +82,7 @@ public class TripFeedbackService {
         recommendationRepository.saveAll(recs);
         notificationService.notifyFeedback(toNotificationCommand(trip, author, feedback, tripDay, tripItem));
 
-        return toResponse(feedback, recs);
+        return toResponse(feedback, recs, 0L, false);
     }
 
     private FeedbackNotificationCommand toNotificationCommand(Trip trip, User author, TripFeedback feedback,
@@ -121,8 +126,7 @@ public class TripFeedbackService {
         }
 
         Page<TripFeedback> page = fetchPage(tripId, dayId, itemId, pageable);
-
-        return page.map(f -> toResponse(f, recommendationRepository.findAllByFeedbackId(f.getId())));
+        return enrichWithLikes(page, callerId);
     }
 
     @Transactional
@@ -142,8 +146,21 @@ public class TripFeedbackService {
             feedbackRepository.markAllReadByTripId(tripId);
         }
 
-        return feedbackRepository.findAllByTripId(tripId, pageable)
-                .map(f -> toResponse(f, recommendationRepository.findAllByFeedbackId(f.getId())));
+        Page<TripFeedback> page = feedbackRepository.findAllByTripId(tripId, pageable);
+        return enrichWithLikes(page, callerId);
+    }
+
+    // 목록 조회 공통 — 페이지에 담긴 피드백들의 좋아요 수/내가 눌렀는지 여부를 한 번에 채워 넣는다 (N+1 방지)
+    private Page<FeedbackResponse> enrichWithLikes(Page<TripFeedback> page, UUID callerId) {
+        List<UUID> feedbackIds = page.getContent().stream().map(TripFeedback::getId).toList();
+        Map<UUID, Long> likeCounts = toMap(feedbackLikeRepository.countGroupByFeedbackIds(feedbackIds));
+        Set<UUID> likedByMe = (callerId == null || feedbackIds.isEmpty())
+                ? Set.of()
+                : new HashSet<>(feedbackLikeRepository.findLikedFeedbackIds(feedbackIds, callerId));
+
+        return page.map(f -> toResponse(
+                f, recommendationRepository.findAllByFeedbackId(f.getId()),
+                likeCounts.getOrDefault(f.getId(), 0L), likedByMe.contains(f.getId())));
     }
 
     @Transactional
@@ -162,7 +179,9 @@ public class TripFeedbackService {
                 request.recommendations() != null ? request.recommendations() : List.of());
         recommendationRepository.saveAll(recs);
 
-        return toResponse(feedback, recs);
+        long likeCount = countLikes(feedbackId);
+        boolean likedByMe = feedbackLikeRepository.existsByFeedbackAndUser(feedback, findUser(userId));
+        return toResponse(feedback, recs, likeCount, likedByMe);
     }
 
     @Transactional
@@ -173,8 +192,35 @@ public class TripFeedbackService {
         if (!isAuthor && !isTripOwner) {
             throw new CustomException(ErrorCode.FEEDBACK_ACCESS_DENIED);
         }
+        feedbackLikeRepository.deleteAllByFeedbackId(feedbackId);
         recommendationRepository.deleteAllByFeedbackId(feedbackId);
         feedbackRepository.delete(feedback);
+    }
+
+    @Transactional
+    public FeedbackResponse likeFeedback(UUID userId, UUID tripId, UUID feedbackId) {
+        TripFeedback feedback = findFeedbackInTrip(feedbackId, tripId);
+        User user = findUser(userId);
+        if (feedbackLikeRepository.existsByFeedbackAndUser(feedback, user)) {
+            throw new CustomException(ErrorCode.FEEDBACK_ALREADY_LIKED);
+        }
+        feedbackLikeRepository.save(new TripFeedbackLike(feedback, user));
+        return toResponse(feedback, recommendationRepository.findAllByFeedbackId(feedbackId), countLikes(feedbackId), true);
+    }
+
+    @Transactional
+    public FeedbackResponse unlikeFeedback(UUID userId, UUID tripId, UUID feedbackId) {
+        TripFeedback feedback = findFeedbackInTrip(feedbackId, tripId);
+        User user = findUser(userId);
+        TripFeedbackLike like = feedbackLikeRepository.findByFeedbackAndUser(feedback, user)
+                .orElseThrow(() -> new CustomException(ErrorCode.FEEDBACK_LIKE_NOT_FOUND));
+        feedbackLikeRepository.delete(like);
+        return toResponse(feedback, recommendationRepository.findAllByFeedbackId(feedbackId), countLikes(feedbackId), false);
+    }
+
+    private long countLikes(UUID feedbackId) {
+        return feedbackLikeRepository.countGroupByFeedbackIds(List.of(feedbackId)).stream()
+                .findFirst().map(row -> (Long) row[1]).orElse(0L);
     }
 
     @Transactional
@@ -279,10 +325,11 @@ public class TripFeedbackService {
     }
 
     private FeedbackResponse toResponse(TripFeedback feedback,
-                                        List<TripFeedbackRecommendation> recs) {
+                                        List<TripFeedbackRecommendation> recs,
+                                        long likeCount, boolean likedByMe) {
         List<FeedbackRecommendationResponse> recResponses = recs.stream()
                 .map(FeedbackRecommendationResponse::from).toList();
-        return FeedbackResponse.of(feedback, recResponses);
+        return FeedbackResponse.of(feedback, recResponses, likeCount, likedByMe);
     }
 
     private TripDay resolveDay(UUID dayId, Trip trip) {

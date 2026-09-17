@@ -17,6 +17,7 @@ import Timeout.travel_tackle.trip.dto.ReceivedFeedbackSummary;
 import Timeout.travel_tackle.trip.dto.TripDetailResponse;
 import Timeout.travel_tackle.trip.dto.UpdateFeedbackRequest;
 import Timeout.travel_tackle.trip.dto.UpdateTripRequest;
+import Timeout.travel_tackle.trip.repository.TripFeedbackLikeRepository;
 import Timeout.travel_tackle.trip.repository.TripFeedbackRepository;
 import Timeout.travel_tackle.trip.service.TripFeedbackService;
 import Timeout.travel_tackle.trip.service.TripService;
@@ -37,6 +38,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,6 +51,7 @@ class TripFeedbackServiceTests {
     @Autowired TripFeedbackService feedbackService;
     @Autowired TripService tripService;
     @Autowired TripFeedbackRepository feedbackRepository;
+    @Autowired TripFeedbackLikeRepository feedbackLikeRepository;
     @Autowired UserRepository userRepository;
     @Autowired CartItemRepository cartItemRepository;
     @Autowired EntityManager entityManager;
@@ -91,7 +94,7 @@ class TripFeedbackServiceTests {
         tripService.addTripItem(owner.getId(), tripId, detail.days().get(1).id(),
                 new AddTripItemRequest(cartForDay2.getId(), null, null));
 
-        tripService.publishTrip(owner.getId(), tripId);
+        tripService.publishTrip(owner.getId(), tripId, null);
     }
 
     // ──────────────────────────────────────────────────────────────────────────
@@ -521,6 +524,90 @@ class TripFeedbackServiceTests {
         entityManager.clear();
 
         assertTrue(feedbackRepository.findById(feedbackId).isEmpty());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // 참견 좋아요
+    // ──────────────────────────────────────────────────────────────────────────
+
+    @Test
+    void likingFeedbackIncrementsCountAndMarksLikedByMe() {
+        UUID feedbackId = feedbackService.create(reviewer.getId(), tripId,
+                new CreateFeedbackRequest("좋아요 받을 참견", null, null, List.of())).id();
+
+        FeedbackResponse liked = feedbackService.likeFeedback(owner.getId(), tripId, feedbackId);
+
+        assertEquals(1, liked.likeCount());
+        assertTrue(liked.likedByMe());
+    }
+
+    @Test
+    void likingTwiceIsRejected() {
+        UUID feedbackId = feedbackService.create(reviewer.getId(), tripId,
+                new CreateFeedbackRequest("중복 좋아요 방지", null, null, List.of())).id();
+        feedbackService.likeFeedback(owner.getId(), tripId, feedbackId);
+
+        CustomException ex = assertThrows(CustomException.class, () ->
+                feedbackService.likeFeedback(owner.getId(), tripId, feedbackId));
+
+        assertEquals(ErrorCode.FEEDBACK_ALREADY_LIKED, ex.getErrorCode());
+    }
+
+    @Test
+    void unlikingRemovesLikeAndDecrementsCount() {
+        UUID feedbackId = feedbackService.create(reviewer.getId(), tripId,
+                new CreateFeedbackRequest("좋아요 취소 대상", null, null, List.of())).id();
+        feedbackService.likeFeedback(owner.getId(), tripId, feedbackId);
+
+        FeedbackResponse unliked = feedbackService.unlikeFeedback(owner.getId(), tripId, feedbackId);
+
+        assertEquals(0, unliked.likeCount());
+        assertFalse(unliked.likedByMe());
+    }
+
+    @Test
+    void unlikingWithoutLikeIsRejected() {
+        UUID feedbackId = feedbackService.create(reviewer.getId(), tripId,
+                new CreateFeedbackRequest("좋아요 없음", null, null, List.of())).id();
+
+        CustomException ex = assertThrows(CustomException.class, () ->
+                feedbackService.unlikeFeedback(owner.getId(), tripId, feedbackId));
+
+        assertEquals(ErrorCode.FEEDBACK_LIKE_NOT_FOUND, ex.getErrorCode());
+    }
+
+    @Test
+    void feedbackListCarriesLikeCountAndLikedByMePerCaller() {
+        UUID feedbackId = feedbackService.create(reviewer.getId(), tripId,
+                new CreateFeedbackRequest("목록에서 좋아요 확인", null, null, List.of())).id();
+        feedbackService.likeFeedback(owner.getId(), tripId, feedbackId);
+
+        FeedbackResponse asOwner = feedbackService.getList(tripId, null, null, owner.getId(), DEFAULT_PAGE)
+                .getContent().stream().filter(f -> f.id().equals(feedbackId)).findFirst().orElseThrow();
+        FeedbackResponse asOther = feedbackService.getList(tripId, null, null, other.getId(), DEFAULT_PAGE)
+                .getContent().stream().filter(f -> f.id().equals(feedbackId)).findFirst().orElseThrow();
+
+        assertEquals(1, asOwner.likeCount());
+        assertTrue(asOwner.likedByMe());
+        assertEquals(1, asOther.likeCount());
+        assertFalse(asOther.likedByMe());
+    }
+
+    @Test
+    void deletingTripCascadesFeedbackLikes() {
+        UUID feedbackId = feedbackService.create(reviewer.getId(), tripId,
+                new CreateFeedbackRequest("좋아요 달린 채로 삭제될 참견", null, null, List.of())).id();
+        feedbackService.likeFeedback(owner.getId(), tripId, feedbackId);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        tripService.deleteTrip(owner.getId(), tripId);
+
+        entityManager.flush();
+        entityManager.clear();
+
+        assertTrue(feedbackLikeRepository.countGroupByFeedbackIds(List.of(feedbackId)).isEmpty());
     }
 
     // ──────────────────────────────────────────────────────────────────────────

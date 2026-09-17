@@ -161,7 +161,7 @@ class AccountDeletionServiceTests {
                 new CartItem(user, "item-" + title, title, null, "1", null, null, null, null));
         tripService.addTripItem(user.getId(), tripId, dayId, new AddTripItemRequest(cartItem.getId(), null, null));
         cartItemRepository.delete(cartItem); // 장바구니 개수 검증에 섞이지 않게 정리 (일정은 스냅샷이라 영향 없음)
-        tripService.publishTrip(user.getId(), tripId);
+        tripService.publishTrip(user.getId(), tripId, null);
         entityManager.flush();
         return tripId;
     }

@@ -187,6 +187,25 @@ class FeedServiceTests {
     }
 
     @Test
+    void planCardCarriesPublishCommentAsContent() {
+        LocalDate date = LocalDate.of(2026, 7, 1);
+        UUID tripId = tripService.createTrip(owner.getId(), new CreateTripRequest("코멘트 있는 여행", date, date)).id();
+        UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
+        CartItem cartItem = cartItemRepository.save(
+                new CartItem(owner, "item-comment", "장소", null, "1", null, null, null, null));
+        tripService.addTripItem(owner.getId(), tripId, dayId, new AddTripItemRequest(cartItem.getId(), null, null));
+        tripService.publishTrip(owner.getId(), tripId, "여유롭게 다녀온 코스예요");
+        entityManager.flush();
+        entityManager.clear();
+
+        List<FeedItemResponse> items = feedService.getFeed(PageRequest.of(0, 10), FeedSort.LATEST).getContent();
+
+        FeedItemResponse plan = items.stream().filter(i -> i.tripId().equals(tripId)).findFirst().orElseThrow();
+        assertEquals(FeedItemType.PLAN, plan.type());
+        assertEquals("여유롭게 다녀온 코스예요", plan.content());
+    }
+
+    @Test
     void unknownSortValueIsRejected() {
         CustomException ex = assertThrows(CustomException.class, () -> FeedSort.from("trending"));
         assertEquals(ErrorCode.INVALID_INPUT, ex.getErrorCode());
@@ -289,7 +308,7 @@ class FeedServiceTests {
         CartItem cartItem = cartItemRepository.save(
                 new CartItem(owner, "item-" + title, title, null, "1", null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, dayId, new AddTripItemRequest(cartItem.getId(), null, null));
-        tripService.publishTrip(owner.getId(), tripId);
+        tripService.publishTrip(owner.getId(), tripId, null);
         entityManager.flush();
         entityManager.createNativeQuery("update trips set created_at = ? where id = ?")
                 .setParameter(1, LocalDateTime.of(2026, 1, 1, 0, 0).plusMinutes(++createdSeq))
@@ -307,7 +326,7 @@ class FeedServiceTests {
                 new CartItem(owner, "item-" + placeName, placeName, null, "1", null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, dayId,
                 new AddTripItemRequest(cartItem.getId(), null, null));
-        tripService.publishTrip(owner.getId(), tripId);
+        tripService.publishTrip(owner.getId(), tripId, null);
         entityManager.flush();
         return tripId;
     }
@@ -322,7 +341,7 @@ class FeedServiceTests {
                 new CartItem(owner, "item-" + title, title, null, "1", null, null, null, null));
         UUID itemId = tripService.addTripItem(owner.getId(), tripId, dayId,
                 new AddTripItemRequest(cartItem.getId(), null, null)).id();
-        tripService.publishTrip(owner.getId(), tripId);
+        tripService.publishTrip(owner.getId(), tripId, null);
         entityManager.flush();
         entityManager.createNativeQuery("update trip_items set address = ? where id = ?")
                 .setParameter(1, address).setParameter(2, itemId).executeUpdate();

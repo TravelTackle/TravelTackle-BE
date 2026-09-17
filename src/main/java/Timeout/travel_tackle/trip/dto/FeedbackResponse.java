@@ -14,12 +14,17 @@ public record FeedbackResponse(
         UUID tripItemId,
         List<FeedbackRecommendationResponse> recommendations,
         boolean read,
+        long likeCount,
+        boolean likedByMe,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
     public record AuthorInfo(UUID id, String name, String profileImageUrl) {}
 
-    public static FeedbackResponse of(TripFeedback feedback, List<FeedbackRecommendationResponse> recommendations) {
+    public static FeedbackResponse of(
+            TripFeedback feedback, List<FeedbackRecommendationResponse> recommendations,
+            long likeCount, boolean likedByMe
+    ) {
         AuthorInfo author = feedback.getAuthor() != null
                 ? new AuthorInfo(feedback.getAuthor().getId(), feedback.getAuthor().getName(),
                         feedback.getAuthor().getProfileImageUrl())
@@ -32,6 +37,8 @@ public record FeedbackResponse(
                 feedback.getTripItem() != null ? feedback.getTripItem().getId() : null,
                 recommendations,
                 feedback.isRead(),
+                likeCount,
+                likedByMe,
                 feedback.getCreatedAt(),
                 feedback.getUpdatedAt()
         );
