@@ -3,6 +3,7 @@ package Timeout.travel_tackle.trip.repository;
 import Timeout.travel_tackle.entity.QTrip;
 import Timeout.travel_tackle.entity.QTripDay;
 import Timeout.travel_tackle.entity.QTripFeedback;
+import Timeout.travel_tackle.entity.QTripFeedbackLike;
 import Timeout.travel_tackle.entity.QTripFeedbackRecommendation;
 import Timeout.travel_tackle.entity.QTripItem;
 import Timeout.travel_tackle.entity.QTripRecord;
@@ -177,6 +178,13 @@ public class TripQueryRepository {
         QTripItem qItem = QTripItem.tripItem;
         QTripFeedback qFeedback = QTripFeedback.tripFeedback;
         QTripFeedbackRecommendation qRec = QTripFeedbackRecommendation.tripFeedbackRecommendation;
+        QTripFeedbackLike qLike = QTripFeedbackLike.tripFeedbackLike;
+
+        queryFactory.delete(qLike)
+                .where(qLike.feedback.in(
+                        JPAExpressions.selectFrom(qFeedback).where(qFeedback.trip.eq(trip))
+                ))
+                .execute();
 
         queryFactory.delete(qRec)
                 .where(qRec.feedback.in(

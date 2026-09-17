@@ -32,6 +32,8 @@ public enum ErrorCode {
     TRIP_PUBLISH_REQUIRES_ITEMS(HttpStatus.BAD_REQUEST, "TRIP_022", "모든 일차에 일정이 1개 이상 있어야 전체공개할 수 있습니다."),
     PUBLISHED_TRIP_DAY_MUST_KEEP_ITEM(HttpStatus.BAD_REQUEST, "TRIP_023", "공개된 계획은 각 일차에 일정이 1개 이상 남아 있어야 합니다. 먼저 비공개로 전환해 주세요."),
     PUBLISHED_TRIP_DATES_LOCKED(HttpStatus.BAD_REQUEST, "TRIP_024", "공개된 계획은 날짜를 변경할 수 없습니다. 먼저 비공개로 전환해 주세요."),
+    FEEDBACK_ALREADY_LIKED(HttpStatus.CONFLICT, "TRIP_025", "이미 좋아요를 누른 참견입니다."),
+    FEEDBACK_LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "TRIP_026", "좋아요를 누르지 않은 참견입니다."),
 
     //Auth에 관련 예외
     EMAIL_ALREADY_EXISTS(HttpStatus.CONFLICT, "AUTH_001", "이미 가입된 이메일입니다."),

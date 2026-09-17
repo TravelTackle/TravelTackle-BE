@@ -83,7 +83,7 @@ class NotificationServiceTests {
         dayId = detail.days().get(0).id();
         itemId = addItem(dayId, "125266", "경포대");
         addItem(detail.days().get(1).id(), "125267", "정동진");
-        tripService.publishTrip(owner.getId(), tripId);
+        tripService.publishTrip(owner.getId(), tripId, null);
     }
 
     @Test

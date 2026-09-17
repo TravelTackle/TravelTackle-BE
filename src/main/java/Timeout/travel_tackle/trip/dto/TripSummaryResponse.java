@@ -14,6 +14,7 @@ public record TripSummaryResponse(
         LocalDate endDate,
         TripStatus status,
         boolean published,
+        String comment,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -25,6 +26,7 @@ public record TripSummaryResponse(
                 trip.getEndDate(),
                 trip.getStatus(),
                 trip.isPublished(),
+                trip.getComment(),
                 trip.getCreatedAt(),
                 trip.getUpdatedAt()
         );

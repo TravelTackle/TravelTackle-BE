@@ -262,13 +262,18 @@ public class TripService {
     // --- 계획 공개/비공개 ---
 
     @Transactional
-    public TripSummaryResponse publishTrip(UUID userId, UUID tripId) {
+    public TripSummaryResponse publishTrip(UUID userId, UUID tripId, String comment) {
         Trip trip = findTripOwnedBy(userId, tripId);
         List<Integer> emptyDays = findEmptyDayNumbers(trip);
         if (!emptyDays.isEmpty()) {
             String days = emptyDays.stream().map(n -> "Day " + n).collect(Collectors.joining(", "));
             throw new CustomException(ErrorCode.TRIP_PUBLISH_REQUIRES_ITEMS,
                     ErrorCode.TRIP_PUBLISH_REQUIRES_ITEMS.getMessage() + " 비어 있는 일차: " + days);
+        }
+        // request body 자체가 없으면(레거시 호출) comment는 null — 기존 코멘트를 건드리지 않는다.
+        // 이미 공개 중인 계획을 다시 이 엔드포인트로 호출해 코멘트만 바꾸는 것도 허용한다(publish는 멱등).
+        if (comment != null) {
+            trip.updateComment(comment.isBlank() ? null : comment);
         }
         trip.publish();
         return TripSummaryResponse.from(trip);
