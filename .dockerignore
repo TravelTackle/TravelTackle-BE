@@ -1,0 +1,13 @@
+.git
+.gradle
+build
+data
+spy.log
+.idea
+*.iml
+.env
+src/main/generated
+src/main/resources/application.yaml
+src/main/resources/application.properties
+src/main/java/Timeout/travel_tackle/seed
+docs

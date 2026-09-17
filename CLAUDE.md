@@ -131,3 +131,7 @@ JPA DDL is still `update` (schema created/extended on boot; new NOT NULL columns
 ## Frontend
 
 `frontend/` is a React 19 + Vite 7 SPA. The Vite dev server (`:5173`) proxies `/api` to the backend at `:8080`, and the backend CORS (`WebConfig`) allows `FRONTEND_ORIGIN` with credentials so the httpOnly auth cookies work cross-origin.
+
+## Deployment
+
+EC2 + `docker-compose.prod.yml` (app on `127.0.0.1:8080` + MariaDB; host Nginx terminates SSL and proxies with `X-Forwarded-*` headers). Values come from `.env` (variables are listed in the compose file); the container runs the `prod` profile from the committed `application-prod.yaml` since the local `application.yaml` is gitignored. CI (`.github/workflows/ci.yml`) runs `./gradlew build` on PRs and pushes to develop/main; CD (`deploy.yml`) on push to main builds the image, pushes it to GHCR and restarts `app` on EC2 over SSH (secrets `EC2_HOST`, `EC2_USER`, `EC2_SSH_KEY`).
