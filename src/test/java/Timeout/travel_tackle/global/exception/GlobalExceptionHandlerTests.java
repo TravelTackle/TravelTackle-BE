@@ -43,6 +43,24 @@ class GlobalExceptionHandlerTests {
     }
 
     @Test
+    void unknownPathAndWrongMethodBecome404And405WithoutReporting() {
+        SentryErrorReporter reporter = org.mockito.Mockito.mock(SentryErrorReporter.class);
+        GlobalExceptionHandler handler = new GlobalExceptionHandler(reporter);
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/wp-admin");
+
+        var notFound = handler.handleNotFound(
+                new org.springframework.web.servlet.resource.NoResourceFoundException(org.springframework.http.HttpMethod.GET, "wp-admin", "/wp-admin"), request);
+        assertEquals(404, notFound.getStatusCode().value());
+        assertEquals("COMMON_003", notFound.getBody().code());
+
+        var notAllowed = handler.handleMethodNotAllowed(
+                new org.springframework.web.HttpRequestMethodNotSupportedException("DELETE"), request);
+        assertEquals(405, notAllowed.getStatusCode().value());
+        assertEquals("COMMON_004", notAllowed.getBody().code());
+        org.mockito.Mockito.verifyNoInteractions(reporter);
+    }
+
+    @Test
     void clientDisconnectDuringSseIsSwallowedWithoutWritingAResponse() {
         GlobalExceptionHandler handler = new GlobalExceptionHandler(new SentryErrorReporter());
         MockHttpServletRequest request = new MockHttpServletRequest("GET", "/api/notifications/stream");

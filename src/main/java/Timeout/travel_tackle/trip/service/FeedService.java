@@ -101,7 +101,7 @@ public class FeedService {
     public UserProfileResponse getUserProfile(UUID targetUserId) {
         User targetUser = findUser(targetUserId);
         long planCount = tripRepository.countByUserAndPublishedTrue(targetUser);
-        long recordCount = tripRecordRepository.countByTrip_UserAndTrip_PublishedTrue(targetUser);
+        long recordCount = tripRecordRepository.countPublishedByOwner(targetUser);
         return UserProfileResponse.of(targetUser, planCount, recordCount);
     }
 
