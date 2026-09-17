@@ -143,7 +143,7 @@ class NotificationApiTests {
         UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
         CartItem cart = cartItemRepository.save(new CartItem(owner, "1", "장소", null, "1", null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, dayId, new AddTripItemRequest(cart.getId(), null, null));
-        tripService.publishTrip(owner.getId(), tripId);
+        tripService.publishTrip(owner.getId(), tripId, null);
         return tripId;
     }
 }

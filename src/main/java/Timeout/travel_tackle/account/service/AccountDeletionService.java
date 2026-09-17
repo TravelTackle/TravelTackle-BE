@@ -13,6 +13,7 @@ import Timeout.travel_tackle.global.exception.ErrorCode;
 import Timeout.travel_tackle.global.util.UuidConverter;
 import Timeout.travel_tackle.preference.repository.UserPreferenceRepository;
 import Timeout.travel_tackle.trip.repository.SavedTripRepository;
+import Timeout.travel_tackle.trip.repository.TripFeedbackLikeRepository;
 import Timeout.travel_tackle.trip.repository.TripFeedbackRepository;
 import Timeout.travel_tackle.trip.repository.TripRepository;
 import Timeout.travel_tackle.trip.service.TripService;
@@ -40,6 +41,7 @@ public class AccountDeletionService {
     private final TripRepository tripRepository;
     private final TripService tripService;
     private final TripFeedbackRepository tripFeedbackRepository;
+    private final TripFeedbackLikeRepository tripFeedbackLikeRepository;
     private final SavedTripRepository savedTripRepository;
     private final CartItemRepository cartItemRepository;
     private final UserPreferenceRepository userPreferenceRepository;
@@ -61,6 +63,9 @@ public class AccountDeletionService {
 
         // 2. 남의 여행계획에 내가 남긴 참견은 삭제하지 않고 author만 익명화
         tripFeedbackRepository.anonymizeByAuthorId(userId);
+
+        // 2b. 남의 참견에 내가 누른 좋아요는 익명화할 의미가 없어 그냥 삭제
+        tripFeedbackLikeRepository.deleteAllByUserId(userId);
 
         // 3. 내가 저장한 남의 여행 복사본 삭제
         savedTripRepository.deleteAllByUser(user);

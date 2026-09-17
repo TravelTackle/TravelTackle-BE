@@ -136,13 +136,15 @@ public class TripController {
     }
 
     @PatchMapping("/{tripId}/publish")
-    @Operation(summary = "여행 계획 공개 (다른 사용자에게 노출/저장 허용)")
+    @Operation(summary = "여행 계획 공개 (다른 사용자에게 노출/저장 허용, 선택적으로 한 줄 코멘트 포함)")
     public ResponseEntity<TripSummaryResponse> publishTrip(
             @AuthenticationPrincipal Jwt jwt,
-            @PathVariable UUID tripId
+            @PathVariable UUID tripId,
+            @Valid @RequestBody(required = false) PublishTripRequest request
     ) {
         UUID userId = UUID.fromString(jwt.getSubject());
-        return ResponseEntity.ok(tripService.publishTrip(userId, tripId));
+        String comment = request != null ? request.comment() : null;
+        return ResponseEntity.ok(tripService.publishTrip(userId, tripId, comment));
     }
 
     @PatchMapping("/{tripId}/unpublish")

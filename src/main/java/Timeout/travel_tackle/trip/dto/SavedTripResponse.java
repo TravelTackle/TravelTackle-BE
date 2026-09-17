@@ -42,7 +42,7 @@ public record SavedTripResponse(
                 savedTrip.getOriginalTrip().getId(),
                 FeedItemType.PLAN,
                 savedTrip.getOriginalTrip().getTitle(),
-                null,
+                savedTrip.getOriginalTrip().getComment(),
                 savedTrip.getOriginalTrip().getUser().getName(),
                 savedTrip.getOriginalTrip().getUser().getProfileImageUrl(),
                 region,

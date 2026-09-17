@@ -38,7 +38,7 @@ public record FeedItemResponse(
                 trip.getId(),
                 FeedItemType.PLAN,
                 trip.getTitle(),
-                null,
+                trip.getComment(),
                 region,
                 trip.getStartDate(),
                 trip.getEndDate(),

@@ -15,6 +15,7 @@ public record TripDetailResponse(
         LocalDate endDate,
         TripStatus status,
         boolean published,
+        String comment,
         LocalDateTime createdAt,
         List<TripDayResponse> days,
         long saveCount,
@@ -28,6 +29,7 @@ public record TripDetailResponse(
                 trip.getEndDate(),
                 trip.getStatus(),
                 trip.isPublished(),
+                trip.getComment(),
                 trip.getCreatedAt(),
                 days,
                 0L,
@@ -36,10 +38,10 @@ public record TripDetailResponse(
     }
 
     public TripDetailResponse withSaveCount(long saveCount) {
-        return new TripDetailResponse(id, title, startDate, endDate, status, published, createdAt, days, saveCount, region);
+        return new TripDetailResponse(id, title, startDate, endDate, status, published, comment, createdAt, days, saveCount, region);
     }
 
     public TripDetailResponse withRegion(String region) {
-        return new TripDetailResponse(id, title, startDate, endDate, status, published, createdAt, days, saveCount, region);
+        return new TripDetailResponse(id, title, startDate, endDate, status, published, comment, createdAt, days, saveCount, region);
     }
 }

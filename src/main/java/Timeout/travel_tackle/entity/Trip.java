@@ -53,6 +53,10 @@ public class Trip {
     @Column(name = "feedback_notification_dismissed_at")
     private LocalDateTime feedbackNotificationDismissedAt; //참견 알림함 지운 시각 — 이 시각 이후 새 참견이 없으면 모아보기에서 숨김
 
+    // 게시(공개) 시 남기는 한 줄 코멘트 — 여행 기록의 짧은 코멘트와 같은 자리에 피드 카드에 노출된다. 선택 입력.
+    @Column(length = 100)
+    private String comment;
+
     public Trip(User user, String title, LocalDate startDate, LocalDate endDate) {
         if (endDate.isBefore(startDate)) {
             throw new CustomException(ErrorCode.INVALID_TRIP_DATE_RANGE);
@@ -92,5 +96,9 @@ public class Trip {
 
     public void dismissFeedbackNotifications() {
         this.feedbackNotificationDismissedAt = LocalDateTime.now();
+    }
+
+    public void updateComment(String comment) {
+        this.comment = comment;
     }
 }

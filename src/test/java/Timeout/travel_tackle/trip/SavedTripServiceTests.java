@@ -259,7 +259,7 @@ class SavedTripServiceTests {
             tripService.addTripItem(ownerId, tripId, dayId,
                     new AddTripItemRequest(cartItem.getId(), null, null));
         }
-        tripService.publishTrip(ownerId, tripId);
+        tripService.publishTrip(ownerId, tripId, null);
         return tripId;
     }
 }
