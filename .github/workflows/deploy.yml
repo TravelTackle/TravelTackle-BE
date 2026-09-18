@@ -54,7 +54,10 @@ jobs:
             export APP_IMAGE
             docker compose -f docker-compose.prod.yml pull app
             docker compose -f docker-compose.prod.yml up -d --no-build app
-            docker image prune -f
+            # 배포마다 새 이미지가 쌓여 디스크가 차는 것을 막는다 (dangling + 안 쓰는 이미지, 빌드 캐시)
+            docker image prune -af
+            docker builder prune -af
+            df -h / | tail -1
         env:
           APP_IMAGE: ${{ needs.build-and-push.outputs.image }}:${{ github.sha }}
           GHCR_USER: ${{ github.actor }}
