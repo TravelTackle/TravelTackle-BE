@@ -241,7 +241,7 @@ public class TripFeedbackService {
         }
         return cartService.addFromCachedData(userId,
                 rec.getTourApiContentId(), rec.getCachedTitle(),
-                rec.getCachedImageUrl(), rec.getCachedAreaCode());
+                rec.getCachedImageUrl(), rec.getCachedAreaCode(), rec.getCachedAddress());
     }
 
     @Transactional(readOnly = true)
@@ -323,7 +323,8 @@ public class TripFeedbackService {
                     detail.contentId(),
                     detail.title(),
                     detail.imageUrl(),
-                    detail.areaCode()
+                    detail.areaCode(),
+                    detail.address()
             ));
         }
         return recs;

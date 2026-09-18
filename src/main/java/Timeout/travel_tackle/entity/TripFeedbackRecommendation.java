@@ -35,12 +35,17 @@ public class TripFeedbackRecommendation {
     @Column(name = "cached_area_code")
     private String cachedAreaCode;
 
+    @Column(name = "cached_address")
+    private String cachedAddress; //관광지 전체 주소 (장바구니로 담을 때 CartItem.cachedAddress로 이어짐)
+
     public TripFeedbackRecommendation(TripFeedback feedback, String tourApiContentId,
-                                      String cachedTitle, String cachedImageUrl, String cachedAreaCode) {
+                                      String cachedTitle, String cachedImageUrl, String cachedAreaCode,
+                                      String cachedAddress) {
         this.feedback = feedback;
         this.tourApiContentId = tourApiContentId;
         this.cachedTitle = cachedTitle;
         this.cachedImageUrl = cachedImageUrl;
         this.cachedAreaCode = cachedAreaCode;
+        this.cachedAddress = cachedAddress;
     }
 }

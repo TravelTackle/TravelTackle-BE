@@ -37,6 +37,9 @@ public class CartItem {
     @Column(name = "cached_region_code")
     private String cachedRegionCode; //관광지 지역 코드
 
+    @Column(name = "cached_address")
+    private String cachedAddress; //관광지 전체 주소 (지역 라벨 파싱용, 계획에 담을 때 TripItem.address로 이어짐)
+
     @Column(name = "cached_content_type_id")
     private String cachedContentTypeId; //TourAPI 콘텐츠 타입 (12 관광지, 32 숙박, 39 음식점 등, 테마 분류용)
 
@@ -55,7 +58,8 @@ public class CartItem {
 
     public CartItem(User user, String tourApiContentId, String cachedTitle,
                     String cachedImageUrl, String cachedRegionCode, String cachedContentTypeId,
-                    String cachedLclsSystm1, String cachedLclsSystm2, String cachedLclsSystm3) {
+                    String cachedLclsSystm1, String cachedLclsSystm2, String cachedLclsSystm3,
+                    String cachedAddress) {
         this.user = user;
         this.tourApiContentId = tourApiContentId;
         this.cachedTitle = cachedTitle;
@@ -65,5 +69,6 @@ public class CartItem {
         this.cachedLclsSystm1 = cachedLclsSystm1;
         this.cachedLclsSystm2 = cachedLclsSystm2;
         this.cachedLclsSystm3 = cachedLclsSystm3;
+        this.cachedAddress = cachedAddress;
     }
 }
