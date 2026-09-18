@@ -84,13 +84,13 @@ class TripFeedbackServiceTests {
         dayId = detail.days().getFirst().id();
 
         CartItem cart = cartItemRepository.save(
-                new CartItem(owner, "125266", "경포대", "img.jpg", "32", "12", null, null, null));
+                new CartItem(owner, "125266", "경포대", "img.jpg", "32", "12", null, null, null, null));
         itemId = tripService.addTripItem(owner.getId(), tripId, dayId,
                 new AddTripItemRequest(cart.getId(), null, null)).id();
 
         // 공개 조건: 모든 일차에 일정 1개 이상 — 2일차에도 하나 채운다
         CartItem cartForDay2 = cartItemRepository.save(
-                new CartItem(owner, "125267", "정동진", "img2.jpg", "32", "12", null, null, null));
+                new CartItem(owner, "125267", "정동진", "img2.jpg", "32", "12", null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, detail.days().get(1).id(),
                 new AddTripItemRequest(cartForDay2.getId(), null, null));
 

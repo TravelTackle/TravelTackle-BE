@@ -45,7 +45,8 @@ public class CartService {
                 content.contentTypeId(),
                 content.lclsSystm1(),
                 content.lclsSystm2(),
-                content.lclsSystm3()
+                content.lclsSystm3(),
+                content.address()
         ));
         return CartItemResponse.from(cartItem);
     }
@@ -60,7 +61,8 @@ public class CartService {
 
     @Transactional
     public CartItemResponse addFromCachedData(UUID userId, String tourApiContentId,
-                                              String cachedTitle, String cachedImageUrl, String cachedRegionCode) {
+                                              String cachedTitle, String cachedImageUrl, String cachedRegionCode,
+                                              String cachedAddress) {
         if (cartItemRepository.existsByUserIdAndTourApiContentId(userId, tourApiContentId)) {
             throw new CustomException(ErrorCode.CART_ITEM_ALREADY_EXISTS);
         }
@@ -68,7 +70,7 @@ public class CartService {
                 .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHENTICATED));
         CartItem cartItem = cartItemRepository.save(
                 new CartItem(user, tourApiContentId, cachedTitle, cachedImageUrl, cachedRegionCode,
-                        null, null, null, null));
+                        null, null, null, null, cachedAddress));
         return CartItemResponse.from(cartItem);
     }
 

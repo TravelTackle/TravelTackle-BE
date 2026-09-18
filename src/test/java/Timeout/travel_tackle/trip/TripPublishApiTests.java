@@ -43,7 +43,7 @@ class TripPublishApiTests {
         LocalDate start = LocalDate.of(2026, 7, 1);
         UUID tripId = tripService.createTrip(owner.getId(), new CreateTripRequest("여행", start, start.plusDays(2))).id();
         TripDetailResponse detail = tripService.getTripDetail(owner.getId(), tripId);
-        CartItem cartItem = cartItemRepository.save(new CartItem(owner, "1", "경복궁", null, "1", null, null, null, null));
+        CartItem cartItem = cartItemRepository.save(new CartItem(owner, "1", "경복궁", null, "1", null, null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, detail.days().get(1).id(), new AddTripItemRequest(cartItem.getId(), null, null));
         Cookie accessCookie = new Cookie("access_token", jwtService.createAccessToken(owner));
 
