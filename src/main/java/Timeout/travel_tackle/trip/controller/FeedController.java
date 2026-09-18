@@ -1,5 +1,8 @@
 package Timeout.travel_tackle.trip.controller;
 
+import Timeout.travel_tackle.entity.Enum.FeedItemType;
+import Timeout.travel_tackle.global.exception.CustomException;
+import Timeout.travel_tackle.global.exception.ErrorCode;
 import Timeout.travel_tackle.trip.dto.FeedItemResponse;
 import Timeout.travel_tackle.trip.dto.FeedSort;
 import Timeout.travel_tackle.trip.dto.PublicTripDetailResponse;
@@ -39,13 +42,16 @@ public class FeedController {
     private final FeedService feedService;
 
     @GetMapping
-    @Operation(summary = "공개 여행 피드 조회 (페이지네이션, keyword로 계획/기록 검색, sort=latest|oldest|popular|relevance)")
+    @Operation(summary = "공개 여행 피드 조회",
+            description = "page/size/sort(latest|oldest|popular|relevance) + keyword 검색, region(지역 라벨 정확 일치), type(PLAN|RECORD) 필터. 모두 조합 가능")
     public ResponseEntity<Page<FeedItemResponse>> getFeed(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "latest") String sort,
-            @RequestParam(required = false) String keyword
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String region,
+            @RequestParam(required = false) String type
     ) {
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         int safePage = Math.max(page, 0);
@@ -55,12 +61,10 @@ public class FeedController {
             feedSort = FeedSort.LATEST; // 키워드 없이 relevance 요청 시 최신순으로 대체
         }
 
-        Pageable pageable = hasKeyword
-                ? PageRequest.of(safePage, safeSize) // 정렬은 QueryDSL 쿼리 안에서 처리
-                : sortedPageable(safePage, safeSize, feedSort);
+        Pageable pageable = PageRequest.of(safePage, safeSize); // 정렬은 QueryDSL 쿼리 안에서 처리
 
         UUID userId = jwt != null ? UUID.fromString(jwt.getSubject()) : null;
-        return ResponseEntity.ok(feedService.getFeed(pageable, feedSort, keyword, userId));
+        return ResponseEntity.ok(feedService.getFeed(pageable, feedSort, keyword, region, parseType(type), userId));
     }
 
     @GetMapping("/users/{userId}")
@@ -90,6 +94,17 @@ public class FeedController {
         return ResponseEntity.ok(feedService.getUserProfile(userId));
     }
 
+    private FeedItemType parseType(String type) {
+        if (!StringUtils.hasText(type)) {
+            return null; // 계획·기록 모두
+        }
+        try {
+            return FeedItemType.valueOf(type.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+    }
+
     private Pageable sortedPageable(int page, int size, FeedSort sort) {
         if (sort == FeedSort.OLDEST) {
             return PageRequest.of(page, size, Sort.by(Sort.Direction.ASC, "createdAt"));
@@ -101,7 +116,8 @@ public class FeedController {
     }
 
     @GetMapping("/regions")
-    @Operation(summary = "기간 내 인기 지역 집계 (공개 계획에 포함된 지역별 계획 수, 계획당 지역 1회, from/to=YYYY-MM-DD, 생성일 기준)")
+    @Operation(summary = "인기 지역 집계",
+            description = "공개 계획에 포함된 지역별 계획 수(계획당 지역 1회, 생성일 기준). from/to(YYYY-MM-DD)를 둘 다 비우면 이번 달, size 기본 10·최대 50")
     public ResponseEntity<List<RegionCountResponse>> getRegionCounts(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,

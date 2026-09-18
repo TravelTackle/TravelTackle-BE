@@ -7,6 +7,7 @@ import Timeout.travel_tackle.entity.QTripFeedbackLike;
 import Timeout.travel_tackle.entity.QTripFeedbackRecommendation;
 import Timeout.travel_tackle.entity.QTripItem;
 import Timeout.travel_tackle.entity.QTripRecord;
+import Timeout.travel_tackle.entity.QSavedTrip;
 import Timeout.travel_tackle.entity.QUser;
 import Timeout.travel_tackle.entity.Trip;
 import Timeout.travel_tackle.entity.TripDay;
@@ -20,6 +21,7 @@ import com.querydsl.core.Tuple;
 import com.querydsl.core.types.OrderSpecifier;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.CaseBuilder;
+import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.core.types.dsl.NumberExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -31,6 +33,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -110,51 +113,80 @@ public class TripQueryRepository {
     }
 
     /**
-     * 공개 피드 키워드 검색 — 계획 제목(Trip.title), 기록 제목/내용(TripRecord),
-     * 또는 계획에 담긴 각 장소 이름(TripItem.cachedTitle)에 매칭되는 Trip을 조회.
-     * RELEVANCE 정렬: 제목매치(랭크 3) > 기록매치(랭크 2) > 장소이름매치(랭크 1), 동점은 최신순.
-     * POPULAR로 검색할 땐 참견 수 서브쿼리 정렬이 부정확해지므로 RELEVANCE로 대체한다.
+     * 공개 피드 조회 — 키워드/지역/종류 필터와 정렬을 한 쿼리에서 처리한다.
+     *   keyword: 계획 제목, 기록 제목·내용, 장소 이름 매칭 (없으면 전체)
+     *   tripIds: 지역 필터로 미리 추린 계획 ID (null 이면 지역 필터 없음, 빈 값이면 결과 없음)
+     *   recordOnly: type=RECORD — 기록이 있는 계획만
+     *   정렬: RELEVANCE(제목 3 > 기록 2 > 장소 1, 동점 최신순)는 키워드가 있을 때만 의미가 있고,
+     *        POPULAR 는 참견 수 + 스크랩 수 내림차순 (키워드 검색 중에도 동작)
      */
-    public Page<Trip> searchPublishedTrips(String keyword, FeedSort sort, Pageable pageable) {
+    public Page<Trip> findFeedTrips(String keyword, Collection<UUID> tripIds, boolean recordOnly,
+                                    FeedSort sort, Pageable pageable) {
         QTrip qTrip = QTrip.trip;
         QTripRecord qRecord = QTripRecord.tripRecord;
         QUser qUser = QUser.user;
         QTripDay qSearchDay = new QTripDay("qSearchDay");
         QTripItem qSearchItem = new QTripItem("qSearchItem");
+        QTripFeedback qFeedback = QTripFeedback.tripFeedback;
+        QSavedTrip qSaved = QSavedTrip.savedTrip;
 
-        String pattern = "%" + keyword.toLowerCase() + "%";
+        BooleanBuilder where = new BooleanBuilder(qTrip.published.isTrue());
+        if (tripIds != null) {
+            if (tripIds.isEmpty()) {
+                return new PageImpl<>(List.of(), pageable, 0);
+            }
+            where.and(qTrip.id.in(tripIds));
+        }
+        if (recordOnly) {
+            where.and(JPAExpressions.selectOne().from(qRecord).where(qRecord.trip.eq(qTrip)).exists());
+        }
 
-        BooleanExpression titleMatch = qTrip.title.lower().like(pattern);
-        BooleanExpression recordMatch = JPAExpressions.selectOne()
-                .from(qRecord)
-                .where(qRecord.trip.eq(qTrip)
-                        .and(qRecord.title.lower().like(pattern)
-                                .or(qRecord.content.lower().like(pattern))))
-                .exists();
-        BooleanExpression itemMatch = JPAExpressions.selectOne()
-                .from(qSearchItem)
-                .join(qSearchItem.tripDay, qSearchDay)
-                .where(qSearchDay.trip.eq(qTrip)
-                        .and(qSearchItem.cachedTitle.lower().like(pattern)))
-                .exists();
-        BooleanExpression matched = titleMatch.or(recordMatch).or(itemMatch);
+        BooleanExpression titleMatch = null;
+        BooleanExpression recordMatch = null;
+        BooleanExpression itemMatch = null;
+        if (keyword != null && !keyword.isBlank()) {
+            String pattern = "%" + keyword.toLowerCase() + "%";
+            titleMatch = qTrip.title.lower().like(pattern);
+            recordMatch = JPAExpressions.selectOne()
+                    .from(qRecord)
+                    .where(qRecord.trip.eq(qTrip)
+                            .and(qRecord.title.lower().like(pattern)
+                                    .or(qRecord.content.lower().like(pattern))))
+                    .exists();
+            itemMatch = JPAExpressions.selectOne()
+                    .from(qSearchItem)
+                    .join(qSearchItem.tripDay, qSearchDay)
+                    .where(qSearchDay.trip.eq(qTrip)
+                            .and(qSearchItem.cachedTitle.lower().like(pattern)))
+                    .exists();
+            where.and(titleMatch.or(recordMatch).or(itemMatch));
+        }
 
-        NumberExpression<Integer> rank = new CaseBuilder()
-                .when(titleMatch).then(3)
-                .when(recordMatch).then(2)
-                .when(itemMatch).then(1)
-                .otherwise(0);
+        // 인기 점수 = 참견 수 + 스크랩 수 (JPQL 피드 쿼리와 같은 정의)
+        NumberExpression<Long> popularity = Expressions.numberTemplate(Long.class, "({0} + {1})",
+                JPAExpressions.select(qFeedback.count()).from(qFeedback).where(qFeedback.trip.eq(qTrip)),
+                JPAExpressions.select(qSaved.count()).from(qSaved).where(qSaved.originalTrip.eq(qTrip)));
 
-        OrderSpecifier<?>[] orderSpecifiers = switch (sort) {
-            case OLDEST -> new OrderSpecifier<?>[]{qTrip.createdAt.asc()};
-            case LATEST -> new OrderSpecifier<?>[]{qTrip.createdAt.desc()};
-            default -> new OrderSpecifier<?>[]{rank.desc(), qTrip.createdAt.desc()}; // RELEVANCE, POPULAR
-        };
+        OrderSpecifier<?>[] orderSpecifiers;
+        if (sort == FeedSort.OLDEST) {
+            orderSpecifiers = new OrderSpecifier<?>[]{qTrip.createdAt.asc()};
+        } else if (sort == FeedSort.POPULAR) {
+            orderSpecifiers = new OrderSpecifier<?>[]{popularity.desc(), qTrip.createdAt.desc()};
+        } else if (sort == FeedSort.RELEVANCE && titleMatch != null) {
+            NumberExpression<Integer> rank = new CaseBuilder()
+                    .when(titleMatch).then(3)
+                    .when(recordMatch).then(2)
+                    .when(itemMatch).then(1)
+                    .otherwise(0);
+            orderSpecifiers = new OrderSpecifier<?>[]{rank.desc(), qTrip.createdAt.desc()};
+        } else {
+            orderSpecifiers = new OrderSpecifier<?>[]{qTrip.createdAt.desc()}; // LATEST, 키워드 없는 RELEVANCE
+        }
 
         List<Trip> content = queryFactory
                 .selectFrom(qTrip)
                 .join(qTrip.user, qUser).fetchJoin()
-                .where(qTrip.published.isTrue(), matched)
+                .where(where)
                 .orderBy(orderSpecifiers)
                 .offset(pageable.getOffset())
                 .limit(pageable.getPageSize())
@@ -163,7 +195,7 @@ public class TripQueryRepository {
         Long total = queryFactory
                 .select(qTrip.count())
                 .from(qTrip)
-                .where(qTrip.published.isTrue(), matched)
+                .where(where)
                 .fetchOne();
 
         return new PageImpl<>(content, pageable, total == null ? 0 : total);

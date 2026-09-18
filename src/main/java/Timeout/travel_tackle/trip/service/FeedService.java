@@ -1,6 +1,7 @@
 package Timeout.travel_tackle.trip.service;
 
 import Timeout.travel_tackle.auth.repository.UserRepository;
+import Timeout.travel_tackle.entity.Enum.FeedItemType;
 import Timeout.travel_tackle.entity.Trip;
 import Timeout.travel_tackle.entity.TripRecord;
 import Timeout.travel_tackle.entity.User;
@@ -29,16 +30,21 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class FeedService {
+
+    private static final ZoneId KST = ZoneId.of("Asia/Seoul"); // 서버(도커)는 UTC 라 월 경계가 9시간 어긋나지 않게 고정
 
     private final TripRepository tripRepository;
     private final TripRecordRepository tripRecordRepository;
@@ -73,12 +79,43 @@ public class FeedService {
      */
     @Transactional(readOnly = true)
     public Page<FeedItemResponse> getFeed(Pageable pageable, FeedSort sort, String keyword, UUID userId) {
-        Page<Trip> trips = StringUtils.hasText(keyword)
-                ? tripQueryRepository.searchPublishedTrips(keyword.trim(), sort, pageable)
-                : (sort == FeedSort.POPULAR
-                        ? tripRepository.findPublishedWithUserOrderByPopularity(pageable)
-                        : tripRepository.findPublishedWithUser(pageable));
-        return buildFeedPage(trips, pageable, userId);
+        return getFeed(pageable, sort, keyword, null, null, userId);
+    }
+
+    /**
+     * region 은 계획에 담긴 장소 주소에서 뽑은 지역 라벨(예: "부산")과 정확히 일치해야 하고,
+     * 한 계획에 여러 지역이 섞여 있으면 그중 하나만 맞아도 포함된다 (인기 지역 집계와 같은 기준).
+     * type 은 PLAN/RECORD 카드 필터 — RECORD 면 기록이 있는 계획만 조회해 기록 카드만 낸다.
+     */
+    @Transactional(readOnly = true)
+    public Page<FeedItemResponse> getFeed(Pageable pageable, FeedSort sort, String keyword,
+                                          String region, FeedItemType type, UUID userId) {
+        Set<UUID> tripIdsInRegion = resolveTripIdsInRegion(region);
+        Page<Trip> trips = tripQueryRepository.findFeedTrips(
+                keyword == null ? null : keyword.trim(), tripIdsInRegion, type == FeedItemType.RECORD, sort, pageable);
+        return buildFeedPage(trips, pageable, userId, type);
+    }
+
+    /**
+     * 지역 라벨로 계획을 추린다. 주소 → 라벨 변환이 자바 규칙(RegionLabelResolver)이라 SQL 로 옮기지 않고
+     * 공개 계획의 장소 주소를 한 번에 읽어 메모리에서 거른다. 공개 계획 수가 크게 늘면 라벨을 컬럼으로
+     * 저장하는 방식으로 바꿔야 하는 알려진 한계.
+     */
+    private Set<UUID> resolveTripIdsInRegion(String region) {
+        if (!StringUtils.hasText(region)) {
+            return null; // 지역 필터 없음
+        }
+        String target = region.trim();
+        Set<UUID> tripIds = new HashSet<>();
+        tripQueryRepository.findItemAddressesOfPublishedTrips(null, null).forEach((tripId, addresses) -> {
+            boolean matched = addresses.stream()
+                    .map(RegionLabelResolver::fromAddress)
+                    .anyMatch(target::equals);
+            if (matched) {
+                tripIds.add(tripId);
+            }
+        });
+        return tripIds;
     }
 
     /**
@@ -106,6 +143,10 @@ public class FeedService {
     }
 
     private Page<FeedItemResponse> buildFeedPage(Page<Trip> trips, Pageable pageable, UUID viewerUserId) {
+        return buildFeedPage(trips, pageable, viewerUserId, null);
+    }
+
+    private Page<FeedItemResponse> buildFeedPage(Page<Trip> trips, Pageable pageable, UUID viewerUserId, FeedItemType type) {
         List<UUID> tripIds = trips.getContent().stream().map(Trip::getId).toList();
         Map<UUID, String> thumbnails = resolveThumbnails(trips.getContent());
         Map<UUID, Long> feedbackCounts = resolveFeedbackCounts(tripIds);
@@ -115,6 +156,7 @@ public class FeedService {
 
         List<FeedItemResponse> items = trips.getContent().stream()
                 .flatMap(trip -> buildFeedItems(trip, thumbnails, feedbackCounts, saveCounts, records, savedTripIdsByOriginal).stream())
+                .filter(item -> type == null || item.type() == type)
                 .toList();
 
         return new PageImpl<>(items, pageable, trips.getTotalElements());
@@ -128,12 +170,19 @@ public class FeedService {
     /**
      * 기간 내 공개 계획에 등장하는 지역을 센다. 한 계획에 같은 지역 일정이 여러 개여도 그 지역은 1번만 세고,
      * 용인·수원처럼 여러 지역이 섞이면 각 지역에 1씩 더한다. 계획 수 내림차순, 동점은 지역명 오름차순, 상위 size 개.
-     * 기간은 계획 생성일(createdAt) 기준이며 from/to 는 날짜 단위로 양끝 포함, null 이면 무제한.
+     * 기간은 계획 생성일(createdAt) 기준이며 from/to 는 날짜 단위로 양끝 포함이다.
+     * 둘 다 비우면 이번 달(한국 시간 기준 1일~말일)로 집계한다 — 지역 칩은 "이달에 올라온 계획" 기준.
+     * 한쪽만 주면 그쪽만 제한한다.
      */
     @Transactional(readOnly = true)
     public List<RegionCountResponse> getRegionCounts(LocalDate from, LocalDate to, int size) {
         if (from != null && to != null && from.isAfter(to)) {
             throw new CustomException(ErrorCode.INVALID_INPUT);
+        }
+        if (from == null && to == null) {
+            LocalDate today = LocalDate.now(KST);
+            from = today.withDayOfMonth(1);
+            to = today.withDayOfMonth(today.lengthOfMonth());
         }
         LocalDateTime fromAt = from == null ? null : from.atStartOfDay();
         LocalDateTime toAt = to == null ? null : to.plusDays(1).atStartOfDay().minusNanos(1);
