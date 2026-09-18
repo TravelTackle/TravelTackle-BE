@@ -340,7 +340,7 @@ class NotificationServiceTests {
     }
 
     private UUID addItem(UUID targetDayId, String contentId, String title) {
-        CartItem cart = cartItemRepository.save(new CartItem(owner, contentId, title, null, "32", "12", null, null, null));
+        CartItem cart = cartItemRepository.save(new CartItem(owner, contentId, title, null, "32", "12", null, null, null, null));
         return tripService.addTripItem(owner.getId(), tripId, targetDayId, new AddTripItemRequest(cart.getId(), null, null)).id();
     }
 }

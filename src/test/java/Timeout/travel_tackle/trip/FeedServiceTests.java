@@ -192,7 +192,7 @@ class FeedServiceTests {
         UUID tripId = tripService.createTrip(owner.getId(), new CreateTripRequest("코멘트 있는 여행", date, date)).id();
         UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(owner, "item-comment", "장소", null, "1", null, null, null, null));
+                new CartItem(owner, "item-comment", "장소", null, "1", null, null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, dayId, new AddTripItemRequest(cartItem.getId(), null, null));
         tripService.publishTrip(owner.getId(), tripId, "여유롭게 다녀온 코스예요");
         entityManager.flush();
@@ -306,7 +306,7 @@ class FeedServiceTests {
         // 모든 일차에 일정이 있어야 공개할 수 있다
         UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(owner, "item-" + title, title, null, "1", null, null, null, null));
+                new CartItem(owner, "item-" + title, title, null, "1", null, null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, dayId, new AddTripItemRequest(cartItem.getId(), null, null));
         tripService.publishTrip(owner.getId(), tripId, null);
         entityManager.flush();
@@ -323,7 +323,7 @@ class FeedServiceTests {
         TripDetailResponse detail = tripService.getTripDetail(owner.getId(), tripId);
         UUID dayId = detail.days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(owner, "item-" + placeName, placeName, null, "1", null, null, null, null));
+                new CartItem(owner, "item-" + placeName, placeName, null, "1", null, null, null, null, null));
         tripService.addTripItem(owner.getId(), tripId, dayId,
                 new AddTripItemRequest(cartItem.getId(), null, null));
         tripService.publishTrip(owner.getId(), tripId, null);
@@ -332,19 +332,17 @@ class FeedServiceTests {
     }
 
 
-    // 첫 일정 주소와 생성 시각을 지정한 공개 계획. 주소는 TourAPI 없이 직접 채운다
+    // 첫 일정 주소와 생성 시각을 지정한 공개 계획. 실제 사용자 플로우처럼 장바구니(CartItem.cachedAddress)를 거쳐 채운다
     private UUID createPublishedTripInRegion(String title, String address, LocalDateTime createdAt) {
         LocalDate date = LocalDate.of(2026, 7, 1);
         UUID tripId = tripService.createTrip(owner.getId(), new CreateTripRequest(title, date, date)).id();
         UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(owner, "item-" + title, title, null, "1", null, null, null, null));
-        UUID itemId = tripService.addTripItem(owner.getId(), tripId, dayId,
-                new AddTripItemRequest(cartItem.getId(), null, null)).id();
+                new CartItem(owner, "item-" + title, title, null, "1", null, null, null, null, address));
+        tripService.addTripItem(owner.getId(), tripId, dayId,
+                new AddTripItemRequest(cartItem.getId(), null, null));
         tripService.publishTrip(owner.getId(), tripId, null);
         entityManager.flush();
-        entityManager.createNativeQuery("update trip_items set address = ? where id = ?")
-                .setParameter(1, address).setParameter(2, itemId).executeUpdate();
         entityManager.createNativeQuery("update trips set created_at = ? where id = ?")
                 .setParameter(1, createdAt).setParameter(2, tripId).executeUpdate();
         return tripId;
@@ -354,12 +352,10 @@ class FeedServiceTests {
     private void addItemWithAddress(UUID tripId, String address) {
         UUID dayId = tripService.getTripDetail(owner.getId(), tripId).days().getFirst().id();
         CartItem cartItem = cartItemRepository.save(
-                new CartItem(owner, "item-" + UUID.randomUUID(), "장소", null, "1", null, null, null, null));
-        UUID itemId = tripService.addTripItem(owner.getId(), tripId, dayId,
-                new AddTripItemRequest(cartItem.getId(), null, null)).id();
+                new CartItem(owner, "item-" + UUID.randomUUID(), "장소", null, "1", null, null, null, null, address));
+        tripService.addTripItem(owner.getId(), tripId, dayId,
+                new AddTripItemRequest(cartItem.getId(), null, null));
         entityManager.flush();
-        entityManager.createNativeQuery("update trip_items set address = ? where id = ?")
-                .setParameter(1, address).setParameter(2, itemId).executeUpdate();
     }
 
     private void giveFeedback(User reviewer, UUID tripId) {
