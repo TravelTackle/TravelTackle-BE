@@ -32,6 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 
@@ -137,11 +138,107 @@ class FeedServiceTests {
         assertEquals(List.of(3L, 1L, 1L, 1L),
                 thisMonth.stream().map(RegionCountResponse::tripCount).toList());
 
-        List<RegionCountResponse> all = feedService.getRegionCounts(null, null, 10);
+        // 기간을 넓게 주면 지난달 것까지 함께 센다
+        List<RegionCountResponse> all = feedService.getRegionCounts(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), 10);
         assertEquals(2L, all.stream().filter(r -> r.region().equals("제주")).findFirst().orElseThrow().tripCount());
 
-        assertEquals(1, feedService.getRegionCounts(null, null, 1).size());
+        assertEquals(1, feedService.getRegionCounts(
+                LocalDate.of(2026, 1, 1), LocalDate.of(2026, 12, 31), 1).size());
         assertTrue(feedService.getRegionCounts(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 8, 31), 10).isEmpty());
+    }
+
+    @Test
+    void regionFilterMatchesAnyRegionInTheTripAndCombinesWithKeyword() {
+        LocalDateTime july = LocalDateTime.of(2026, 7, 10, 12, 0);
+        UUID busan = createPublishedTripInRegion("부산 코스", "부산광역시 해운대구 해운대해변로 264", july);
+        createPublishedTripInRegion("서울 코스", "서울특별시 종로구 사직로 161", july);
+        UUID mixed = createPublishedTripInRegion("용인 후 수원", "경기도 용인시 처인구 포곡읍 에버랜드로 199", july);
+        addItemWithAddress(mixed, "경기도 수원시 팔달구 정조로 825");
+        entityManager.flush();
+        entityManager.clear();
+
+        Page<FeedItemResponse> busanOnly = feedService.getFeed(
+                PageRequest.of(0, 20), FeedSort.LATEST, null, "부산", null, null);
+        assertEquals(List.of(busan), busanOnly.getContent().stream().map(FeedItemResponse::tripId).toList());
+        assertEquals(1, busanOnly.getTotalElements());
+
+        // 첫 일정이 용인이어도 수원으로 찾을 수 있다 (인기 지역 집계와 같은 기준)
+        assertEquals(List.of(mixed), feedService.getFeed(
+                PageRequest.of(0, 20), FeedSort.LATEST, null, "수원", null, null)
+                .getContent().stream().map(FeedItemResponse::tripId).toList());
+
+        // keyword 와 조합
+        assertEquals(1, feedService.getFeed(PageRequest.of(0, 20), FeedSort.RELEVANCE, "코스", "부산", null, null)
+                .getTotalElements());
+        assertTrue(feedService.getFeed(PageRequest.of(0, 20), FeedSort.RELEVANCE, "서울", "부산", null, null)
+                .getContent().isEmpty());
+        // 없는 지역
+        assertTrue(feedService.getFeed(PageRequest.of(0, 20), FeedSort.LATEST, null, "강릉", null, null)
+                .getContent().isEmpty());
+    }
+
+    @Test
+    void typeFilterReturnsOnlyPlanOrRecordCards() {
+        LocalDateTime july = LocalDateTime.of(2026, 7, 10, 12, 0);
+        UUID withRecord = createPublishedTripInRegion("기록 있는 계획", "부산광역시 중구 광복로 55", july);
+        tripRecordService.createRecord(owner.getId(), withRecord, new TripRecordRequest("기록 제목", "기록 내용", List.of()));
+        createPublishedTripInRegion("기록 없는 계획", "부산광역시 서구 임시수도기념로 45", july);
+        entityManager.flush();
+        entityManager.clear();
+
+        Page<FeedItemResponse> all = feedService.getFeed(PageRequest.of(0, 20), FeedSort.LATEST, null, null, null, null);
+        assertEquals(3, all.getContent().size()); // 계획 2 + 기록 1
+
+        Page<FeedItemResponse> plans = feedService.getFeed(
+                PageRequest.of(0, 20), FeedSort.LATEST, null, null, FeedItemType.PLAN, null);
+        assertEquals(2, plans.getContent().size());
+        assertTrue(plans.getContent().stream().allMatch(i -> i.type() == FeedItemType.PLAN));
+
+        Page<FeedItemResponse> records = feedService.getFeed(
+                PageRequest.of(0, 20), FeedSort.LATEST, null, null, FeedItemType.RECORD, null);
+        assertEquals(List.of(withRecord), records.getContent().stream().map(FeedItemResponse::tripId).toList());
+        assertTrue(records.getContent().stream().allMatch(i -> i.type() == FeedItemType.RECORD));
+        assertEquals(1, records.getTotalElements()); // 기록 있는 계획만 센다
+
+        // 지역·종류 조합
+        assertEquals(1, feedService.getFeed(
+                PageRequest.of(0, 20), FeedSort.LATEST, null, "부산", FeedItemType.RECORD, null).getContent().size());
+    }
+
+    @Test
+    void popularSortAppliesWhileSearchingByKeyword() {
+        LocalDateTime july = LocalDateTime.of(2026, 7, 10, 12, 0);
+        UUID quiet = createPublishedTripInRegion("제주 코스 조용", "제주특별자치도 제주시 애월읍 애월북서길 56", july);
+        UUID popular = createPublishedTripInRegion("제주 코스 인기", "제주특별자치도 제주시 우도면 우도해안길 32", july);
+        feedbackService.create(reviewerA.getId(), popular, new CreateFeedbackRequest("좋아요", null, null, List.of()));
+        feedbackService.create(reviewerB.getId(), popular, new CreateFeedbackRequest("최고", null, null, List.of()));
+        savedTripService.save(reviewerA.getId(), popular, FeedItemType.PLAN);
+        entityManager.flush();
+        entityManager.clear();
+
+        List<UUID> order = feedService.getFeed(PageRequest.of(0, 20), FeedSort.POPULAR, "제주 코스", null, null, null)
+                .getContent().stream().map(FeedItemResponse::tripId).toList();
+
+        assertEquals(popular, order.get(0)); // 참견 2 + 스크랩 1 이 먼저
+        assertTrue(order.contains(quiet));
+    }
+
+    @Test
+    void regionCountsDefaultToCurrentMonthWhenPeriodOmitted() {
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        LocalDateTime thisMonth = today.withDayOfMonth(1).atTime(9, 0);
+        LocalDateTime lastMonth = today.withDayOfMonth(1).minusMonths(1).atTime(9, 0);
+        createPublishedTripInRegion("이달 부산", "부산광역시 해운대구 해운대해변로 264", thisMonth);
+        createPublishedTripInRegion("지난달 부산", "부산광역시 중구 광복로 55", lastMonth);
+        createPublishedTripInRegion("지난달 서울", "서울특별시 종로구 사직로 161", lastMonth);
+        entityManager.flush();
+        entityManager.clear();
+
+        List<RegionCountResponse> defaults = feedService.getRegionCounts(null, null, 10);
+
+        assertEquals(List.of("부산"), defaults.stream().map(RegionCountResponse::region).toList());
+        assertEquals(1L, defaults.getFirst().tripCount()); // 지난달 2건은 빠진다
     }
 
     @Test
