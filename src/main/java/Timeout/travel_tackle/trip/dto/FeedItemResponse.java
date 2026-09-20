@@ -29,7 +29,8 @@ public record FeedItemResponse(
         UUID savedTripId,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        List<TripDayResponse> days
+        List<TripDayResponse> days,
+        PetFriendlySummary petFriendly // 계획의 장소 기준. 기록 카드도 같은 계획 값을 싣는다
 ) {
     public static FeedItemResponse ofPlan(
             Trip trip, String thumbnailUrl, long feedbackCount, long saveCount, UUID savedTripId, String region,
@@ -54,13 +55,14 @@ public record FeedItemResponse(
                 savedTripId,
                 trip.getCreatedAt(),
                 trip.getUpdatedAt(),
-                days
+                days,
+                PetFriendlySummary.of(days)
         );
     }
 
     public static FeedItemResponse ofRecord(
             Trip trip, TripRecord record, String thumbnailUrl, List<String> photoUrls, long feedbackCount, long saveCount, UUID savedTripId,
-            String region
+            String region, PetFriendlySummary petFriendly
     ) {
         return new FeedItemResponse(
                 trip.getId(),
@@ -81,7 +83,8 @@ public record FeedItemResponse(
                 savedTripId,
                 record.getCreatedAt(),
                 null,
-                null
+                null,
+                petFriendly
         );
     }
 }

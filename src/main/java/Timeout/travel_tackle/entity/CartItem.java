@@ -52,6 +52,9 @@ public class CartItem {
     @Column(name = "cached_lcls_systm3")
     private String cachedLclsSystm3; //분류체계 소분류
 
+    @Column(name = "pet_friendly")
+    private Boolean petFriendly; //반려동물 동반 가능 여부 (담을 때 관광공사 반려동물 서비스로 확인, null = 미확인)
+
     @CreationTimestamp
     @Column(name = "added_at", nullable = false, updatable = false)
     private LocalDateTime addedAt; //바구니에 담은 시간
@@ -70,5 +73,9 @@ public class CartItem {
         this.cachedLclsSystm2 = cachedLclsSystm2;
         this.cachedLclsSystm3 = cachedLclsSystm3;
         this.cachedAddress = cachedAddress;
+    }
+
+    public void markPetFriendly(Boolean petFriendly) {
+        this.petFriendly = petFriendly;
     }
 }

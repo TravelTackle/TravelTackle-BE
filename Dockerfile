@@ -1,5 +1,4 @@
-# syntax=docker/dockerfile:1
-# 1단계: Gradle 빌드 (QueryDSL Q-클래스는 compileJava 가 생성)
+
 FROM eclipse-temurin:21-jdk AS build
 WORKDIR /app
 COPY gradlew build.gradle settings.gradle ./
@@ -7,7 +6,7 @@ COPY gradle ./gradle
 COPY src ./src
 RUN --mount=type=cache,target=/root/.gradle chmod +x gradlew && ./gradlew --no-daemon clean bootJar -x test
 
-# 2단계: 실행 이미지 (JRE + curl(healthcheck))
+# 실행 이미지
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/* \

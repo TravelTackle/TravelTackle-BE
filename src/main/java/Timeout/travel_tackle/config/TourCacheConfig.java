@@ -26,7 +26,8 @@ public class TourCacheConfig {
                 "tourRecommended",
                 "tourContentsByLang",
                 "tourFestivalsByLang",
-                "tourFilteredByLang"
+                "tourFilteredByLang",
+                "tourPetFlags"
         );
         manager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(2_000)

@@ -11,6 +11,7 @@ import Timeout.travel_tackle.tour.dto.TourDtos.ContentSummary;
 import Timeout.travel_tackle.tour.dto.TourDtos.Festival;
 import Timeout.travel_tackle.tour.dto.TourDtos.Image;
 import Timeout.travel_tackle.tour.dto.TourDtos.Page;
+import Timeout.travel_tackle.tour.dto.TourDtos.PetTourInfo;
 import com.fasterxml.jackson.databind.JsonNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -69,7 +70,6 @@ public class TourService {
                 .toList();
     }
 
-    @Cacheable(cacheNames = "tourContents")
     public Page<ContentSummary> getContents(
             String keyword,
             String areaCode,
@@ -79,14 +79,45 @@ public class TourService {
             int size,
             String arrange
     ) {
+        return getContents(keyword, areaCode, sigunguCode, contentTypeId, page, size, arrange, false);
+    }
+
+    /** petFriendly 면 반려동물 동반 가능 장소만 제공하는 서비스로 검색한다. 필터·응답 형식·contentId 는 국문과 같다 */
+    @Cacheable(cacheNames = "tourContents")
+    public Page<ContentSummary> getContents(
+            String keyword,
+            String areaCode,
+            String sigunguCode,
+            String contentTypeId,
+            int page,
+            int size,
+            String arrange,
+            boolean petFriendly
+    ) {
         validatePage(page, size);
         String normalizedArrange = normalizeArrange(arrange, "A", false);
+        String service = serviceFor(petFriendly);
         TourApiResult result = StringUtils.hasText(keyword)
-                ? tourApiClient.searchContents(keyword.trim(), areaCode, sigunguCode,
+                ? tourApiClient.searchContents(service, keyword.trim(), areaCode, sigunguCode,
                 contentTypeId, page, size, normalizedArrange)
-                : tourApiClient.getAreaContents(areaCode, sigunguCode,
+                : tourApiClient.getAreaContents(service, areaCode, sigunguCode,
                 contentTypeId, page, size, normalizedArrange);
         return toPage(result);
+    }
+
+    private static String serviceFor(boolean petFriendly) {
+        return petFriendly ? TourApiClient.PET_SERVICE : TourApiClient.DEFAULT_SERVICE;
+    }
+
+    public Page<ContentSummary> getNearbyContents(
+            double longitude,
+            double latitude,
+            int radius,
+            String contentTypeId,
+            int page,
+            int size
+    ) {
+        return getNearbyContents(longitude, latitude, radius, contentTypeId, page, size, false);
     }
 
     @Cacheable(cacheNames = "tourNearby")
@@ -96,7 +127,8 @@ public class TourService {
             int radius,
             String contentTypeId,
             int page,
-            int size
+            int size,
+            boolean petFriendly
     ) {
         validatePage(page, size);
         if (radius < 1 || radius > MAX_RADIUS_METERS
@@ -105,7 +137,7 @@ public class TourService {
             throw new CustomException(ErrorCode.INVALID_TOUR_SEARCH_CONDITION);
         }
         return toPage(tourApiClient.getNearbyContents(
-                longitude, latitude, radius, contentTypeId, page, size));
+                serviceFor(petFriendly), longitude, latitude, radius, contentTypeId, page, size));
     }
 
     /**
@@ -186,8 +218,39 @@ public class TourService {
                 images,
                 text(item, "lclsSystm1"),
                 text(item, "lclsSystm2"),
-                text(item, "lclsSystm3")
+                text(item, "lclsSystm3"),
+                petInfo(contentId)
         );
+    }
+
+    /** 반려동물 동반 가능 여부만 확인 (백필용). 실패는 예외로 올려 호출자가 '미확인' 으로 남길 수 있게 한다 */
+    @Cacheable(cacheNames = "tourPetFlags", key = "#contentId")
+    public boolean isPetFriendly(String contentId) {
+        return !tourApiClient.getPetDetail(contentId).items().isEmpty();
+    }
+
+    // 반려동물 안내는 부가 정보라, 서비스 장애나 미등록이면 null 로 두고 상세 조회 자체는 성공시킨다
+    private PetTourInfo petInfo(String contentId) {
+        try {
+            List<JsonNode> items = tourApiClient.getPetDetail(contentId).items();
+            if (items.isEmpty()) {
+                return null;
+            }
+            JsonNode item = items.getFirst();
+            return new PetTourInfo(
+                    text(item, "acmpyTypeCd"),
+                    text(item, "acmpyPsblCpam"),
+                    text(item, "acmpyNeedMtr"),
+                    text(item, "etcAcmpyInfo"),
+                    text(item, "relaPosesFclty"),
+                    text(item, "relaFrnshPrdlst"),
+                    text(item, "relaPurcPrdlst"),
+                    text(item, "relaRntlPrdlst"),
+                    text(item, "relaAcdntRiskMtr"));
+        } catch (CustomException e) {
+            log.warn("detailPetTour2 unavailable for contentId={}, proceeding without pet info", contentId);
+            return null;
+        }
     }
 
     @Cacheable(cacheNames = "tourFestivals")

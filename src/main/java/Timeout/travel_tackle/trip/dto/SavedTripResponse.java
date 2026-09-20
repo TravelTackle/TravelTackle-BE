@@ -32,7 +32,8 @@ public record SavedTripResponse(
         long saveCount,
         UUID copiedTripId,
         LocalDateTime savedAt,
-        List<TripDayResponse> days
+        List<TripDayResponse> days,
+        PetFriendlySummary petFriendly // 원본 계획의 장소 기준 (피드 카드와 같은 값)
 ) {
     public static SavedTripResponse ofPlan(
             SavedTrip savedTrip, String region, String thumbnailUrl, long feedbackCount, long saveCount,
@@ -55,13 +56,14 @@ public record SavedTripResponse(
                 saveCount,
                 savedTrip.getCopiedTrip() != null ? savedTrip.getCopiedTrip().getId() : null,
                 savedTrip.getSavedAt(),
-                days
+                days,
+                PetFriendlySummary.of(days)
         );
     }
 
     public static SavedTripResponse ofRecord(
             SavedTrip savedTrip, TripRecord record, String region, String thumbnailUrl, List<String> photoUrls,
-            long feedbackCount, long saveCount
+            long feedbackCount, long saveCount, PetFriendlySummary petFriendly
     ) {
         return new SavedTripResponse(
                 savedTrip.getId(),
@@ -80,7 +82,8 @@ public record SavedTripResponse(
                 saveCount,
                 savedTrip.getCopiedTrip() != null ? savedTrip.getCopiedTrip().getId() : null,
                 savedTrip.getSavedAt(),
-                null
+                null,
+                petFriendly
         );
     }
 }

@@ -136,6 +136,7 @@ public class TripService {
                 cartItem.getCachedImageUrl(), cartItem.getCachedRegionCode(), cartItem.getCachedContentTypeId(),
                 cartItem.getCachedLclsSystm1(), cartItem.getCachedLclsSystm2(), cartItem.getCachedLclsSystm3(),
                 request.startTime(), request.endTime(), nextIndex, cartItem.getCachedAddress(), null);
+        item.markPetFriendly(cartItem.getPetFriendly());
         tripItemRepository.save(item);
         trip.touch();
         return TripItemResponse.from(item);

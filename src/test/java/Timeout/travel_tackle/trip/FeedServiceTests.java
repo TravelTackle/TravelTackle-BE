@@ -12,6 +12,7 @@ import Timeout.travel_tackle.trip.dto.CreateTripRequest;
 import Timeout.travel_tackle.entity.Enum.FeedItemType;
 import Timeout.travel_tackle.trip.dto.FeedItemResponse;
 import Timeout.travel_tackle.trip.dto.FeedSort;
+import Timeout.travel_tackle.trip.dto.PetFriendlySummary;
 import Timeout.travel_tackle.trip.dto.RegionCountResponse;
 import Timeout.travel_tackle.trip.dto.TripDetailResponse;
 import Timeout.travel_tackle.trip.dto.TripRecordRequest;
@@ -239,6 +240,48 @@ class FeedServiceTests {
 
         assertEquals(List.of("부산"), defaults.stream().map(RegionCountResponse::region).toList());
         assertEquals(1L, defaults.getFirst().tripCount()); // 지난달 2건은 빠진다
+    }
+
+    @Test
+    void petFriendlyBadgeAndFilterFollowEveryItemOfTheTrip() {
+        LocalDateTime july = LocalDateTime.of(2026, 7, 10, 12, 0);
+        UUID allPet = createPublishedTripInRegion("전부 가능", "서울특별시 종로구 낙산길 41", july);
+        markLastItemPetFriendly(allPet, true);
+        addItemWithAddress(allPet, "서울특별시 중구 퇴계로34길 28");
+        markLastItemPetFriendly(allPet, true);
+        UUID mixed = createPublishedTripInRegion("일부 가능", "서울특별시 종로구 사직로 161", july);
+        markLastItemPetFriendly(mixed, true);
+        addItemWithAddress(mixed, "서울특별시 종로구 삼청로 37");
+        markLastItemPetFriendly(mixed, false);
+        UUID unknown = createPublishedTripInRegion("미확인", "부산광역시 해운대구 해운대해변로 264", july); // null 그대로
+        entityManager.flush();
+        entityManager.clear();
+
+        Page<FeedItemResponse> all = feedService.getFeed(PageRequest.of(0, 20), FeedSort.LATEST, null, null, null, false, null);
+        FeedItemResponse allPetCard = all.getContent().stream().filter(i -> i.tripId().equals(allPet)).findFirst().orElseThrow();
+        FeedItemResponse mixedCard = all.getContent().stream().filter(i -> i.tripId().equals(mixed)).findFirst().orElseThrow();
+        FeedItemResponse unknownCard = all.getContent().stream().filter(i -> i.tripId().equals(unknown)).findFirst().orElseThrow();
+        assertTrue(allPetCard.petFriendly().all());
+        assertEquals(2, allPetCard.petFriendly().count());
+        assertEquals(2, allPetCard.petFriendly().total());
+        assertEquals(new PetFriendlySummary(false, 1, 2), mixedCard.petFriendly());
+        assertEquals(new PetFriendlySummary(false, 0, 1), unknownCard.petFriendly()); // 미확인은 불가로 본다
+
+        Page<FeedItemResponse> petOnly = feedService.getFeed(PageRequest.of(0, 20), FeedSort.LATEST, null, null, null, true, null);
+        assertEquals(List.of(allPet), petOnly.getContent().stream().map(FeedItemResponse::tripId).toList());
+        assertEquals(1, petOnly.getTotalElements());
+
+        // 상세와 공개 상세도 같은 요약을 싣는다
+        assertTrue(tripService.getTripDetail(owner.getId(), allPet).petFriendly().all());
+        assertTrue(feedService.getPublicTripDetail(allPet).petFriendly().all());
+        assertEquals(Boolean.TRUE, feedService.getPublicTripDetail(allPet).days().getFirst().items().getFirst().petFriendly());
+    }
+
+    private void markLastItemPetFriendly(UUID tripId, boolean petFriendly) {
+        TripDetailResponse detail = tripService.getTripDetail(owner.getId(), tripId);
+        UUID itemId = detail.days().getFirst().items().getLast().id();
+        entityManager.createNativeQuery("update trip_items set pet_friendly = ? where id = ?")
+                .setParameter(1, petFriendly).setParameter(2, itemId).executeUpdate();
     }
 
     @Test

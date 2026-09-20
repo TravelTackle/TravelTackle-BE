@@ -12,5 +12,6 @@ public enum InterestTag {
     FESTIVAL,    // 축제 및 행사
     ACTIVITY,    // 체험 및 레저
     NIGHTLIFE,   // 야간 관광
-    PHOTOGRAPHY  // 사진 명소
+    PHOTOGRAPHY, // 사진 명소
+    PET_FRIENDLY // 반려동물 동반 (관광공사 반려동물 동반여행 서비스 기반, 전용 추천 섹션)
 }

@@ -25,7 +25,8 @@ public record PublicTripDetailResponse(
         TripRecordResponse record,
         long feedbackCount,
         UUID savedTripId,
-        long saveCount
+        long saveCount,
+        PetFriendlySummary petFriendly
 ) {
     public static PublicTripDetailResponse of(
             Trip trip,
@@ -53,7 +54,8 @@ public record PublicTripDetailResponse(
                 record,
                 feedbackCount,
                 savedTripId,
-                saveCount
+                saveCount,
+                PetFriendlySummary.of(days)
         );
     }
 }
