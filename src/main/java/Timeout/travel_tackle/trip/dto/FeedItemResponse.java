@@ -23,6 +23,7 @@ public record FeedItemResponse(
         String ownerName,
         String ownerProfileImageUrl,
         String thumbnailUrl,
+        List<String> photoUrls,
         long feedbackCount,
         long saveCount,
         UUID savedTripId,
@@ -47,6 +48,7 @@ public record FeedItemResponse(
                 trip.getUser().getName(),
                 trip.getUser().getProfileImageUrl(),
                 thumbnailUrl,
+                List.of(),
                 feedbackCount,
                 saveCount,
                 savedTripId,
@@ -57,7 +59,7 @@ public record FeedItemResponse(
     }
 
     public static FeedItemResponse ofRecord(
-            Trip trip, TripRecord record, String thumbnailUrl, long feedbackCount, long saveCount, UUID savedTripId,
+            Trip trip, TripRecord record, String thumbnailUrl, List<String> photoUrls, long feedbackCount, long saveCount, UUID savedTripId,
             String region
     ) {
         return new FeedItemResponse(
@@ -73,6 +75,7 @@ public record FeedItemResponse(
                 trip.getUser().getName(),
                 trip.getUser().getProfileImageUrl(),
                 thumbnailUrl,
+                photoUrls,
                 feedbackCount,
                 saveCount,
                 savedTripId,
