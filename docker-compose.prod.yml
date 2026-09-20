@@ -1,14 +1,11 @@
-# 운영(EC2) 구성: app + MariaDB. SSL 은 호스트 Nginx 가 담당하고 127.0.0.1:8080 으로 프록시한다
-# (proxy_set_header Host $host; X-Forwarded-Proto $scheme; X-Forwarded-For 필요 — OAuth 리다이렉트/secure 쿠키용).
-# 값은 같은 폴더의 .env 에서 읽는다
 services:
   app:
     build: .
-    image: ${APP_IMAGE:-travel-tackle-api:latest} # CD(deploy.yml)는 GHCR 이미지를 넘기고, 로컬은 직접 build
+    image: ${APP_IMAGE:-travel-tackle-api:latest}
     container_name: travel-tackle-api
     ports:
-      - "127.0.0.1:8080:8080" # 호스트 Nginx 전용
-    environment: # .env 에서 앱에 필요한 값만 넘긴다 (DB root 비밀번호는 제외)
+      - "127.0.0.1:8080:8080"
+    environment:
       SPRING_PROFILES_ACTIVE: prod
       DB_URL: jdbc:mariadb://mariadb:3306/${DB_NAME:-travel_tackle}?characterEncoding=utf8mb4
       DB_USERNAME: ${DB_USERNAME:-travel}

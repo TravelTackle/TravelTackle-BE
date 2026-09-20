@@ -19,7 +19,8 @@ public record TripDetailResponse(
         LocalDateTime createdAt,
         List<TripDayResponse> days,
         long saveCount,
-        String region
+        String region,
+        PetFriendlySummary petFriendly
 ) {
     public static TripDetailResponse of(Trip trip, List<TripDayResponse> days) {
         return new TripDetailResponse(
@@ -33,15 +34,16 @@ public record TripDetailResponse(
                 trip.getCreatedAt(),
                 days,
                 0L,
-                null
+                null,
+                PetFriendlySummary.of(days)
         );
     }
 
     public TripDetailResponse withSaveCount(long saveCount) {
-        return new TripDetailResponse(id, title, startDate, endDate, status, published, comment, createdAt, days, saveCount, region);
+        return new TripDetailResponse(id, title, startDate, endDate, status, published, comment, createdAt, days, saveCount, region, petFriendly);
     }
 
     public TripDetailResponse withRegion(String region) {
-        return new TripDetailResponse(id, title, startDate, endDate, status, published, comment, createdAt, days, saveCount, region);
+        return new TripDetailResponse(id, title, startDate, endDate, status, published, comment, createdAt, days, saveCount, region, petFriendly);
     }
 }

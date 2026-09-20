@@ -36,7 +36,7 @@ public class CartService {
                 .orElseThrow(() -> new CustomException(ErrorCode.UNAUTHENTICATED));
         ContentDetail content = tourService.getContentDetail(contentId);
 
-        CartItem cartItem = cartItemRepository.save(new CartItem(
+        CartItem cartItem = new CartItem(
                 user,
                 content.contentId(),
                 content.title(),
@@ -47,8 +47,9 @@ public class CartService {
                 content.lclsSystm2(),
                 content.lclsSystm3(),
                 content.address()
-        ));
-        return CartItemResponse.from(cartItem);
+        );
+        cartItem.markPetFriendly(content.petInfo() != null); // 상세 조회에 반려동물 서비스 결과가 같이 오므로 여기서 확정
+        return CartItemResponse.from(cartItemRepository.save(cartItem));
     }
 
     @Transactional(readOnly = true)
@@ -93,7 +94,8 @@ public class CartService {
             String imageUrl,
             String areaCode,
             String contentTypeId,
-            LocalDateTime addedAt
+            LocalDateTime addedAt,
+            Boolean petFriendly // null = 미확인
     ) {
         private static CartItemResponse from(CartItem item) {
             return new CartItemResponse(
@@ -103,7 +105,8 @@ public class CartService {
                     item.getCachedImageUrl(),
                     item.getCachedRegionCode(),
                     item.getCachedContentTypeId(),
-                    item.getAddedAt()
+                    item.getAddedAt(),
+                    item.getPetFriendly()
             );
         }
     }

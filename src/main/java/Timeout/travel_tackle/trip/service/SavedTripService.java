@@ -10,6 +10,7 @@ import Timeout.travel_tackle.entity.TripRecord;
 import Timeout.travel_tackle.entity.User;
 import Timeout.travel_tackle.global.exception.CustomException;
 import Timeout.travel_tackle.global.exception.ErrorCode;
+import Timeout.travel_tackle.trip.dto.PetFriendlySummary;
 import Timeout.travel_tackle.trip.dto.SavedTripResponse;
 import Timeout.travel_tackle.trip.dto.TripDetailResponse;
 import Timeout.travel_tackle.trip.dto.TripSummaryResponse;
@@ -157,7 +158,8 @@ public class SavedTripService {
                     if (savedTrip.getSourceType() == FeedItemType.RECORD && record != null) {
                         TripDetailResponse detail = tripQueryRepository.findDetail(savedTrip.getOriginalTrip());
                         return SavedTripResponse.ofRecord(
-                                savedTrip, record, RegionLabelResolver.fromTripDetail(detail), thumbnailUrl, photoUrls, feedbackCount, saveCount);
+                                savedTrip, record, RegionLabelResolver.fromTripDetail(detail), thumbnailUrl, photoUrls, feedbackCount, saveCount,
+                                PetFriendlySummary.of(detail.days()));
                     }
 
                     TripDetailResponse detail = tripQueryRepository.findDetail(savedTrip.getOriginalTrip());
@@ -197,8 +199,8 @@ public class SavedTripService {
             TripDay copiedDay = new TripDay(copy, originalDay.getDayNumber(), originalDay.getDate());
             tripDayRepository.save(copiedDay);
 
-            List<TripItem> copiedItems = tripItemRepository
-                    .findAllByTripDayOrderByOrderIndex(originalDay).stream()
+            List<TripItem> originalItems = tripItemRepository.findAllByTripDayOrderByOrderIndex(originalDay);
+            List<TripItem> copiedItems = originalItems.stream()
                     .map(item -> new TripItem(
                             copiedDay,
                             item.getTourApiContentId(),
@@ -215,6 +217,9 @@ public class SavedTripService {
                             item.getAddress(),
                             item.getMemo()))
                     .toList();
+            for (int i = 0; i < copiedItems.size(); i++) {
+                copiedItems.get(i).markPetFriendly(originalItems.get(i).getPetFriendly());
+            }
             tripItemRepository.saveAll(copiedItems);
         }
     }

@@ -68,6 +68,8 @@ social:
     enabled: ${SOCIAL_LOGIN_ENABLED:false}
 
 app:
+  pet:
+    backfill-on-startup: ${APP_PET_BACKFILL_ON_STARTUP:false} # 반려동물 동반 여부가 없는 장소를 부팅 시 한 번 채움. 도입 직후에만 true
   mail:
     from: ${MAIL_FROM:no-reply@travel-tackle.local}
     from-name: Travel Tackle
@@ -87,6 +89,8 @@ app:
       TOOL USE RULE — this is mandatory:
       For ANY question about places, festivals, accommodations, restaurants, or attractions,
       you MUST call the matching tool (searchTourism or searchFestivals) BEFORE answering.
+      If the user mentions a pet, dog, cat, puppy or traveling with an animal, call searchTourism with petFriendly=true
+      and tell them the places are pet-friendly.
       The tools return LIVE Korea Tourism Organization data that includes the current year and
       FUTURE dates. Your own training knowledge is outdated and must NOT be used to decide whether
       data exists. Never reply "I have no data for that date/year" or "I cannot know future events"

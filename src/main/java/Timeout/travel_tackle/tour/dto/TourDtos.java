@@ -72,7 +72,22 @@ public final class TourDtos {
             List<Image> images,
             String lclsSystm1,
             String lclsSystm2,
-            String lclsSystm3
+            String lclsSystm3,
+            PetTourInfo petInfo // 반려동물 동반 안내. 반려동물 동반 서비스에 등록되지 않은 장소는 null
+    ) {
+    }
+
+    /** 반려동물 동반 안내 (KorPetTourService2 detailPetTour2). 값이 없는 항목은 null */
+    public record PetTourInfo(
+            String companionType,     // 동반 유형 (예: 전구역 동반가능)
+            String allowedAnimals,    // 동반 가능 동물
+            String requirements,      // 동반 시 필요사항 (예: 목줄 착용)
+            String notes,             // 기타 동반 정보
+            String facilities,        // 관련 구비 시설
+            String providedItems,     // 비치 품목
+            String purchasableItems,  // 구매 가능 품목
+            String rentalItems,       // 렌탈 품목
+            String safetyNotes        // 관련 사고 대비사항
     ) {
     }
 

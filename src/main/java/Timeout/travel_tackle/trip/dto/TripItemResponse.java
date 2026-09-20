@@ -15,7 +15,8 @@ public record TripItemResponse(
         String memo,
         LocalTime startTime,
         LocalTime endTime,
-        int orderIndex
+        int orderIndex,
+        Boolean petFriendly // 반려동물 동반 가능 여부, null = 미확인
 ) {
     public static TripItemResponse from(TripItem item) {
         return new TripItemResponse(
@@ -28,7 +29,8 @@ public record TripItemResponse(
                 item.getMemo(),
                 item.getStartTime(),
                 item.getEndTime(),
-                item.getOrderIndex()
+                item.getOrderIndex(),
+                item.getPetFriendly()
         );
     }
 }

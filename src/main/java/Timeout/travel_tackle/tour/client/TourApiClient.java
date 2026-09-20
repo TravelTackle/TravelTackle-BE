@@ -8,12 +8,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatusCode;
+import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.util.UriBuilder;
 
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -23,7 +26,9 @@ import java.util.function.Consumer;
 public class TourApiClient {
 
     private static final String SUCCESS_CODE = "0000";
-    private static final String DEFAULT_SERVICE = "KorService2"; // 언어 미지정 시 국문 서비스
+    public static final String DEFAULT_SERVICE = "KorService2"; // 언어 미지정 시 국문 서비스
+    // 반려동물 동반 가능 장소만 제공하는 국문 서비스. contentId·areaCode 체계가 KorService2 와 같다
+    public static final String PET_SERVICE = "KorPetTourService2";
     private static final String RELATED_SERVICE = "TarRlteTarService1"; // 관광지별 연관 관광지 정보
 
     private final RestClient restClient;
@@ -36,7 +41,11 @@ public class TourApiClient {
             @Value("${tour.service-key:}") String serviceKey,
             @Value("${tour.mobile-app:TravelTackle}") String mobileApp
     ) {
-        this.restClient = RestClient.builder().baseUrl(baseUrl).build();
+        // 관광공사 응답이 느릴 때 상세·장바구니 요청이 같이 묶이지 않도록 연결 5초, 읽기 10초로 제한한다
+        JdkClientHttpRequestFactory requestFactory = new JdkClientHttpRequestFactory(
+                HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build());
+        requestFactory.setReadTimeout(Duration.ofSeconds(10));
+        this.restClient = RestClient.builder().baseUrl(baseUrl).requestFactory(requestFactory).build();
         this.objectMapper = new ObjectMapper();
         this.serviceKey = serviceKey;
         this.mobileApp = mobileApp;
@@ -71,7 +80,19 @@ public class TourApiClient {
             int size,
             String arrange
     ) {
-        return request("areaBasedList2", builder -> {
+        return getAreaContents(DEFAULT_SERVICE, areaCode, sigunguCode, contentTypeId, page, size, arrange);
+    }
+
+    public TourApiResult getAreaContents(
+            String service,
+            String areaCode,
+            String sigunguCode,
+            String contentTypeId,
+            int page,
+            int size,
+            String arrange
+    ) {
+        return request(service, "areaBasedList2", builder -> {
             addIfPresent(builder, "areaCode", areaCode);
             addIfPresent(builder, "sigunguCode", sigunguCode);
             addIfPresent(builder, "contentTypeId", contentTypeId);
@@ -124,7 +145,19 @@ public class TourApiClient {
             int page,
             int size
     ) {
-        return request("locationBasedList2", builder -> {
+        return getNearbyContents(DEFAULT_SERVICE, longitude, latitude, radius, contentTypeId, page, size);
+    }
+
+    public TourApiResult getNearbyContents(
+            String service,
+            double longitude,
+            double latitude,
+            int radius,
+            String contentTypeId,
+            int page,
+            int size
+    ) {
+        return request(service, "locationBasedList2", builder -> {
             builder.queryParam("mapX", longitude)
                     .queryParam("mapY", latitude)
                     .queryParam("radius", radius)
@@ -158,6 +191,11 @@ public class TourApiClient {
 
     public TourApiResult getCommonDetail(String contentId) {
         return request("detailCommon2", builder -> builder.queryParam("contentId", contentId));
+    }
+
+    /** 반려동물 동반 안내 (동반 유형·가능 동물·필요사항 등). 등록되지 않은 장소는 items 가 비어 온다 */
+    public TourApiResult getPetDetail(String contentId) {
+        return request(PET_SERVICE, "detailPetTour2", builder -> builder.queryParam("contentId", contentId));
     }
 
     public TourApiResult getImages(String contentId) {

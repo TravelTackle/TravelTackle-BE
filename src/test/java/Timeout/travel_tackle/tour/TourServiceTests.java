@@ -1,6 +1,7 @@
 package Timeout.travel_tackle.tour;
 
 import Timeout.travel_tackle.global.exception.CustomException;
+import Timeout.travel_tackle.global.exception.ErrorCode;
 import Timeout.travel_tackle.tour.client.TourApiClient;
 import Timeout.travel_tackle.tour.client.TourApiClient.TourApiResult;
 import Timeout.travel_tackle.tour.service.TourService;
@@ -46,7 +47,7 @@ class TourServiceTests {
                   "mapy": "37.578822"
                 }
                 """);
-        when(tourApiClient.getAreaContents("1", "23", "12", 1, 20, "A"))
+        when(tourApiClient.getAreaContents(TourApiClient.DEFAULT_SERVICE, "1", "23", "12", 1, 20, "A"))
                 .thenReturn(new TourApiResult(List.of(item), 1, 20, 1));
 
         var result = tourService.getContents(null, "1", "23", "12", 1, 20, "A");
@@ -59,13 +60,59 @@ class TourServiceTests {
 
     @Test
     void keywordUsesKeywordSearchEndpoint() {
-        when(tourApiClient.searchContents("한류", null, null, null, 1, 10, "A"))
+        when(tourApiClient.searchContents(TourApiClient.DEFAULT_SERVICE, "한류", null, null, null, 1, 10, "A"))
                 .thenReturn(new TourApiResult(List.of(), 1, 10, 0));
 
         tourService.getContents(" 한류 ", null, null, null, 1, 10, "A");
 
-        verify(tourApiClient).searchContents("한류", null, null, null, 1, 10, "A");
-        verify(tourApiClient, never()).getAreaContents(any(), any(), any(), anyInt(), anyInt(), any());
+        verify(tourApiClient).searchContents(TourApiClient.DEFAULT_SERVICE, "한류", null, null, null, 1, 10, "A");
+        verify(tourApiClient, never()).getAreaContents(any(), any(), any(), any(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void petFriendlySearchUsesPetTourServiceWithSameFilters() {
+        when(tourApiClient.searchContents(TourApiClient.PET_SERVICE, "공원", "1", null, "12", 1, 10, "A"))
+                .thenReturn(new TourApiResult(List.of(), 1, 10, 0));
+        when(tourApiClient.getAreaContents(TourApiClient.PET_SERVICE, "6", "16", null, 1, 20, "A"))
+                .thenReturn(new TourApiResult(List.of(), 1, 20, 0));
+        when(tourApiClient.getNearbyContents(TourApiClient.PET_SERVICE, 129.16, 35.15, 3000, null, 1, 5))
+                .thenReturn(new TourApiResult(List.of(), 1, 5, 0));
+
+        tourService.getContents("공원", "1", null, "12", 1, 10, "A", true);
+        tourService.getContents(null, "6", "16", null, 1, 20, "A", true);
+        tourService.getNearbyContents(129.16, 35.15, 3000, null, 1, 5, true);
+
+        verify(tourApiClient).searchContents(TourApiClient.PET_SERVICE, "공원", "1", null, "12", 1, 10, "A");
+        verify(tourApiClient).getAreaContents(TourApiClient.PET_SERVICE, "6", "16", null, 1, 20, "A");
+        verify(tourApiClient).getNearbyContents(TourApiClient.PET_SERVICE, 129.16, 35.15, 3000, null, 1, 5);
+        verify(tourApiClient, never()).searchContents(eq(TourApiClient.DEFAULT_SERVICE), any(), any(), any(), any(), anyInt(), anyInt(), any());
+    }
+
+    @Test
+    void detailCarriesPetInfoWhenRegisteredAndSurvivesPetServiceOutage() throws Exception {
+        JsonNode detail = objectMapper.readTree("""
+                {"contentid":"129501","title":"낙산공원"}
+                """);
+        JsonNode pet = objectMapper.readTree("""
+                {"contentid":"129501","acmpyTypeCd":"전구역 동반가능","acmpyPsblCpam":"전 견종 동반 가능",
+                 "acmpyNeedMtr":"목줄 착용","etcAcmpyInfo":"입마개 착용 필수","relaPosesFclty":""}
+                """);
+        when(tourApiClient.getCommonDetail("129501")).thenReturn(new TourApiResult(List.of(detail), 1, 1, 1));
+        when(tourApiClient.getImages("129501")).thenReturn(new TourApiResult(List.of(), 1, 30, 0));
+        when(tourApiClient.getPetDetail("129501")).thenReturn(new TourApiResult(List.of(pet), 1, 10, 1));
+
+        var withPet = tourService.getContentDetail("129501");
+        assertEquals("전구역 동반가능", withPet.petInfo().companionType());
+        assertEquals("전 견종 동반 가능", withPet.petInfo().allowedAnimals());
+        assertEquals("목줄 착용", withPet.petInfo().requirements());
+        assertEquals("입마개 착용 필수", withPet.petInfo().notes());
+        assertNull(withPet.petInfo().facilities()); // 빈 문자열은 null 로
+
+        // 반려동물 서비스 장애 시에도 상세 조회는 성공한다
+        when(tourApiClient.getCommonDetail("777")).thenReturn(new TourApiResult(List.of(detail), 1, 1, 1));
+        when(tourApiClient.getImages("777")).thenReturn(new TourApiResult(List.of(), 1, 30, 0));
+        when(tourApiClient.getPetDetail("777")).thenThrow(new CustomException(ErrorCode.TOUR_API_UNAVAILABLE));
+        assertNull(tourService.getContentDetail("777").petInfo());
     }
 
     @Test
@@ -87,12 +134,15 @@ class TourServiceTests {
                 .thenReturn(new TourApiResult(List.of(detail), 1, 1, 1));
         when(tourApiClient.getImages("125266"))
                 .thenReturn(new TourApiResult(List.of(image), 1, 30, 1));
+        when(tourApiClient.getPetDetail("125266"))
+                .thenReturn(new TourApiResult(List.of(), 1, 10, 0)); // 반려동물 서비스 미등록
 
         var result = tourService.getContentDetail("125266");
 
         assertEquals("경복궁", result.title());
         assertEquals("궁궐 설명", result.overview());
         assertEquals("https://example.com/original.jpg", result.images().getFirst().originalUrl());
+        assertNull(result.petInfo());
     }
 
     @Test

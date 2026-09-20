@@ -122,6 +122,12 @@ public class TripQueryRepository {
      */
     public Page<Trip> findFeedTrips(String keyword, Collection<UUID> tripIds, boolean recordOnly,
                                     FeedSort sort, Pageable pageable) {
+        return findFeedTrips(keyword, tripIds, recordOnly, false, sort, pageable);
+    }
+
+    /** petOnly: 장소가 하나 이상 있고 전부 반려동물 동반 가능(pet_friendly = true)인 계획만 */
+    public Page<Trip> findFeedTrips(String keyword, Collection<UUID> tripIds, boolean recordOnly, boolean petOnly,
+                                    FeedSort sort, Pageable pageable) {
         QTrip qTrip = QTrip.trip;
         QTripRecord qRecord = QTripRecord.tripRecord;
         QUser qUser = QUser.user;
@@ -139,6 +145,15 @@ public class TripQueryRepository {
         }
         if (recordOnly) {
             where.and(JPAExpressions.selectOne().from(qRecord).where(qRecord.trip.eq(qTrip)).exists());
+        }
+        if (petOnly) {
+            QTripDay qPetDay = new QTripDay("qPetDay");
+            QTripItem qPetItem = new QTripItem("qPetItem");
+            where.and(JPAExpressions.selectOne().from(qPetItem).join(qPetItem.tripDay, qPetDay)
+                    .where(qPetDay.trip.eq(qTrip)).exists());
+            where.and(JPAExpressions.selectOne().from(qPetItem).join(qPetItem.tripDay, qPetDay)
+                    .where(qPetDay.trip.eq(qTrip), qPetItem.petFriendly.isNull().or(qPetItem.petFriendly.isFalse()))
+                    .notExists());
         }
 
         BooleanExpression titleMatch = null;
