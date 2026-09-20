@@ -24,6 +24,7 @@ public class TourApiClient {
 
     private static final String SUCCESS_CODE = "0000";
     private static final String DEFAULT_SERVICE = "KorService2"; // 언어 미지정 시 국문 서비스
+    private static final String RELATED_SERVICE = "TarRlteTarService1"; // 관광지별 연관 관광지 정보
 
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
@@ -132,6 +133,27 @@ public class TourApiClient {
                     .queryParam("arrange", "E");
             addIfPresent(builder, "contentTypeId", contentTypeId);
         });
+    }
+
+    /**
+     * 관광지별 연관 관광지(티맵 내비 데이터 기반) 조회. 부분 일치 키워드 검색이라
+     * 응답에 이름이 비슷한 다른 중심 관광지가 섞일 수 있어 호출 측에서 tAtsNm으로 거른다.
+     * areaCd/signguCd는 법정동 코드(시도 2자리 / 시군구 5자리).
+     */
+    public TourApiResult getRelatedTours(
+            String baseYm,
+            String areaCd,
+            String signguCd,
+            String keyword,
+            int size
+    ) {
+        return request(RELATED_SERVICE, "searchKeyword1", builder -> builder
+                .queryParam("baseYm", baseYm)
+                .queryParam("areaCd", areaCd)
+                .queryParam("signguCd", signguCd)
+                .queryParam("keyword", keyword)
+                .queryParam("pageNo", 1)
+                .queryParam("numOfRows", size));
     }
 
     public TourApiResult getCommonDetail(String contentId) {

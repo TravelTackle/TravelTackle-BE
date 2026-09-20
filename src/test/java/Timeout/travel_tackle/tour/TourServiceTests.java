@@ -94,4 +94,109 @@ class TourServiceTests {
         assertEquals("궁궐 설명", result.overview());
         assertEquals("https://example.com/original.jpg", result.images().getFirst().originalUrl());
     }
+
+    @Test
+    void relatedContentsFollowRankAndSkipUnmatchedOrNonAttractions() throws Exception {
+        when(tourApiClient.getCommonDetail("1")).thenReturn(single("""
+                {"contentid":"1","contenttypeid":"12","title":"성산일출봉",
+                 "lDongRegnCd":"50","lDongSignguCd":"130"}"""));
+        // 순위가 뒤섞여 내려와도 rlteRank 순으로 정렬되어야 한다
+        when(tourApiClient.getRelatedTours(anyString(), eq("50"), eq("50130"), eq("성산일출봉"), anyInt()))
+                .thenReturn(new TourApiResult(List.of(
+                        related("성산일출봉", "비자림", "관광지", "3"),
+                        related("성산일출봉", "섭지코지", "관광지", "1"),
+                        related("성산일출봉", "아쿠아플라넷", "관광지", "2"),     // TourAPI 미등록
+                        related("성산일출봉", "제주 흑돼지집", "음식", "4"),       // 관광지가 아님
+                        related("성산 다른곳", "엉뚱한곳", "관광지", "5")          // 다른 중심 관광지
+                ), 1, 50, 5));
+        stubSearch("섭지코지", "127813", "섭지코지");
+        stubSearch("비자림", "126472", "비자림");
+        when(tourApiClient.searchContents(eq("아쿠아플라넷"), any(), any(), any(), anyInt(), anyInt(), any()))
+                .thenReturn(new TourApiResult(List.of(), 1, 10, 0));
+
+        var result = tourService.getRelatedContents("1", 8);
+
+        assertEquals(List.of("127813", "126472"),
+                result.stream().map(c -> c.contentId()).toList());
+    }
+
+    @Test
+    void relatedContentsAcceptsParentheticalTitleVariantAndHonorsLimit() throws Exception {
+        when(tourApiClient.getCommonDetail("1")).thenReturn(single("""
+                {"contentid":"1","contenttypeid":"12","title":"성산일출봉",
+                 "lDongRegnCd":"50","lDongSignguCd":"130"}"""));
+        when(tourApiClient.getRelatedTours(anyString(), any(), any(), any(), anyInt()))
+                .thenReturn(new TourApiResult(List.of(
+                        related("성산일출봉", "함덕해수욕장", "관광지", "1"),
+                        related("성산일출봉", "섭지코지", "관광지", "2")), 1, 50, 2));
+        stubSearch("함덕해수욕장", "10", "함덕해수욕장 (함덕 서우봉 해변)");
+        stubSearch("섭지코지", "11", "섭지코지");
+
+        var result = tourService.getRelatedContents("1", 1);
+
+        assertEquals(1, result.size());
+        assertEquals("10", result.getFirst().contentId());
+    }
+
+    @Test
+    void relatedContentsIgnoreSquareBracketSubtitleInOriginTitle() throws Exception {
+        when(tourApiClient.getCommonDetail("1")).thenReturn(single("""
+                {"contentid":"1","contenttypeid":"12","title":"성산일출봉 [유네스코 세계자연유산]",
+                 "lDongRegnCd":"50","lDongSignguCd":"130"}"""));
+        when(tourApiClient.getRelatedTours(anyString(), any(), any(), eq("성산일출봉"), anyInt()))
+                .thenReturn(new TourApiResult(List.of(
+                        related("성산일출봉", "섭지코지", "관광지", "1")), 1, 50, 1));
+        stubSearch("섭지코지", "127813", "섭지코지");
+
+        assertEquals(1, tourService.getRelatedContents("1", 8).size());
+    }
+
+    @Test
+    void relatedContentsAreEmptyForRestaurantsWithoutCallingRelatedApi() throws Exception {
+        when(tourApiClient.getCommonDetail("9")).thenReturn(single("""
+                {"contentid":"9","contenttypeid":"39","title":"식당",
+                 "lDongRegnCd":"50","lDongSignguCd":"130"}"""));
+
+        assertTrue(tourService.getRelatedContents("9", 8).isEmpty());
+        verify(tourApiClient, never()).getRelatedTours(any(), any(), any(), any(), anyInt());
+    }
+
+    @Test
+    void relatedContentsFallBackToPreviousMonthWhenLatestMonthHasNoData() throws Exception {
+        when(tourApiClient.getCommonDetail("1")).thenReturn(single("""
+                {"contentid":"1","contenttypeid":"12","title":"성산일출봉",
+                 "lDongRegnCd":"50","lDongSignguCd":"130"}"""));
+        when(tourApiClient.getRelatedTours(anyString(), any(), any(), any(), anyInt()))
+                .thenReturn(new TourApiResult(List.of(), 1, 50, 0))
+                .thenReturn(new TourApiResult(List.of(
+                        related("성산일출봉", "섭지코지", "관광지", "1")), 1, 50, 1));
+        stubSearch("섭지코지", "127813", "섭지코지");
+
+        assertEquals(1, tourService.getRelatedContents("1", 8).size());
+        verify(tourApiClient, times(2)).getRelatedTours(anyString(), any(), any(), any(), anyInt());
+    }
+
+    @Test
+    void relatedContentsRejectOutOfRangeLimit() {
+        assertThrows(CustomException.class, () -> tourService.getRelatedContents("1", 9));
+        assertThrows(CustomException.class, () -> tourService.getRelatedContents("1", 0));
+    }
+
+    private TourApiResult single(String json) throws Exception {
+        return new TourApiResult(List.of(objectMapper.readTree(json)), 1, 1, 1);
+    }
+
+    private JsonNode related(String center, String name, String category, String rank) throws Exception {
+        return objectMapper.readTree("""
+                {"tAtsNm":"%s","rlteTatsNm":"%s","rlteCtgryLclsNm":"%s","rlteRank":"%s",
+                 "rlteSignguNm":"서귀포시"}""".formatted(center, name, category, rank));
+    }
+
+    private void stubSearch(String keyword, String contentId, String title) throws Exception {
+        JsonNode item = objectMapper.readTree("""
+                {"contentid":"%s","contenttypeid":"12","title":"%s","addr1":"제주특별자치도 서귀포시"}"""
+                .formatted(contentId, title));
+        when(tourApiClient.searchContents(eq(keyword), any(), any(), any(), anyInt(), anyInt(), any()))
+                .thenReturn(new TourApiResult(List.of(item), 1, 10, 1));
+    }
 }
