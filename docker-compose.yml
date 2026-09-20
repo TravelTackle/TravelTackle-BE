@@ -1,4 +1,4 @@
-# 로컬 개발용 MariaDB. Homebrew 등으로 이미 3306 에 MariaDB 가 떠 있으면 이 파일은 필요 없음.
+#로컬용
 services:
   mariadb:
     image: mariadb:11.4

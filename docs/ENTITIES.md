@@ -100,6 +100,7 @@
 | cachedLclsSystm1 | cached_lcls_systm1 | String | 캐시된 분류체계 대분류 |
 | cachedLclsSystm2 | cached_lcls_systm2 | String | 캐시된 분류체계 중분류 |
 | cachedLclsSystm3 | cached_lcls_systm3 | String | 캐시된 분류체계 소분류 |
+| petFriendly | pet_friendly | Boolean | 반려동물 동반 가능 여부 (담을 때 관광공사 반려동물 서비스로 확인, null = 미확인) |
 | addedAt | added_at | LocalDateTime | 장바구니 추가 일시 |
 
 ---
@@ -221,6 +222,7 @@
 | startTime | start_time | LocalTime | 일정 시작 시간 |
 | endTime | end_time | LocalTime | 일정 종료 시간 |
 | orderIndex | order_index | int | 해당 날짜 내 순서 |
+| petFriendly | pet_friendly | Boolean | 반려동물 동반 가능 여부 (장바구니 값 복사, null = 미확인) |
 
 ---
 

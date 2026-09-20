@@ -144,7 +144,7 @@ class TripFeedbackServiceTests {
         when(tourService.getContentDetail("999111")).thenReturn(
                 new ContentDetail("999111", "12", "정동진", "강릉시", null,
                         "32", "3", null, null, null, "img2.jpg",
-                        128.9, 37.6, null, null, null, List.of(), null, null, null));
+                        128.9, 37.6, null, null, null, List.of(), null, null, null, null));
 
         FeedbackResponse result = feedbackService.create(reviewer.getId(), tripId,
                 new CreateFeedbackRequest("여기가 더 좋아요", null, null,
@@ -617,6 +617,6 @@ class TripFeedbackServiceTests {
     private ContentDetail stubContent(String contentId, String title) {
         return new ContentDetail(contentId, "12", title, "주소", null,
                 "32", "3", null, null, null, "img.jpg",
-                128.9, 37.6, null, null, null, List.of(), null, null, null);
+                128.9, 37.6, null, null, null, List.of(), null, null, null, null);
     }
 }

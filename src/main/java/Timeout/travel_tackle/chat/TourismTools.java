@@ -1,6 +1,7 @@
 package Timeout.travel_tackle.chat;
 
 import Timeout.travel_tackle.global.exception.CustomException;
+import Timeout.travel_tackle.tour.client.TourApiClient;
 import Timeout.travel_tackle.tour.dto.TourDtos.ContentSummary;
 import Timeout.travel_tackle.tour.dto.TourDtos.Festival;
 import Timeout.travel_tackle.tour.service.TourService;
@@ -29,15 +30,19 @@ public class TourismTools {
 
     @Tool(description = "지역+분류로 관광지·맛집·카페·숙박·쇼핑·문화·자연·역사·레포츠를 검색한다. 실제 한국관광공사 데이터만 반환. "
             + "일반 추천은 lDongRegnCd(지역)와 category(분류)로 검색하라. 예: 서울 카페 → lDongRegnCd='11', category='카페'. "
-            + "keyword는 '경복궁'처럼 특정 장소명을 콕 집어 찾을 때만 쓰고, 일반 추천엔 비워라.")
+            + "keyword는 '경복궁'처럼 특정 장소명을 콕 집어 찾을 때만 쓰고, 일반 추천엔 비워라. "
+            + "반려동물·강아지·고양이·애견과 함께 갈 곳을 물으면 반드시 petFriendly=true 로 호출하라 (한국관광공사 반려동물 동반여행 데이터).")
     public String searchTourism(
             @ToolParam(required = false, description="지역의 숫자 코드만(법정동 시도, 이름 금지). 서울=11 부산=26 대구=27 인천=28 "
                     + "광주=29 대전=30 울산=31 세종=36 경기=41 강원=51 충북=43 충남=44 전북=52 전남=46 경북=47 경남=48 제주=50. 모르면 비움") String lDongRegnCd,
             @ToolParam(required = false, description="분류. 관광지/맛집/카페/숙박/쇼핑/문화시설/자연/역사/레포츠 중 하나. 모르면 비움") String category,
             @ToolParam(required = false, description="특정 장소명으로 찾을 때만(예: '경복궁'). 일반 추천엔 비움") String keyword,
-            @ToolParam(required = false, description="응답 언어 코드. ko en ja zh zh-tw de fr es ru. 비우면 한국어") String language
+            @ToolParam(required = false, description="응답 언어 코드. ko en ja zh zh-tw de fr es ru. 비우면 한국어") String language,
+            @ToolParam(required = false, description="반려동물(강아지·고양이) 동반 가능 장소만 찾을 때 true. 그 외엔 비움") Boolean petFriendly
     ) {
-        String service = toService(language);
+        boolean petOnly = Boolean.TRUE.equals(petFriendly);
+        // 반려동물 동반 서비스는 국문만 제공되므로 언어와 무관하게 그 서비스로 검색한다 (답변 언어는 모델이 맞춘다)
+        String service = petOnly ? TourApiClient.PET_SERVICE : toService(language);
         String region = regionDigits(lDongRegnCd);
         Category cat = toCategory(category);
         try {
@@ -55,11 +60,14 @@ public class TourismTools {
             } else {
                 items = tourService.getFilteredContentsInLanguage(service, null, null, null, null, RESULT_SIZE);
             }
-            log.info("[TOOL] searchTourism region={} category={} keyword={} lang={} -> {} results",
-                    lDongRegnCd, category, keyword, language, items.size());
+            log.info("[TOOL] searchTourism region={} category={} keyword={} lang={} pet={} -> {} results",
+                    lDongRegnCd, category, keyword, language, petOnly, items.size());
             String label = StringUtils.hasText(category) ? category
                     : (StringUtils.hasText(keyword) ? keyword : "추천");
-            return formatContents(label, items);
+            String result = formatContents(petOnly ? "반려동물 동반 가능 " + label : label, items);
+            return petOnly && !items.isEmpty()
+                    ? result + "\n(위 장소는 모두 한국관광공사 반려동물 동반여행 서비스에 등록된, 반려동물과 함께 갈 수 있는 곳입니다)"
+                    : result;
         } catch (CustomException e) {
             log.warn("searchTourism failed: region={} category={} lang={} error={}",
                     lDongRegnCd, category, language, e.getMessage());

@@ -65,6 +65,9 @@ public class TripItem {
     @Column(name = "order_index")
     private int orderIndex; //관고아 방문 순서
 
+    @Column(name = "pet_friendly")
+    private Boolean petFriendly; //반려동물 동반 가능 여부 (장바구니 값 복사, null = 미확인 → 뱃지 계산 시 불가로 취급)
+
     public TripItem(TripDay tripDay, String tourApiContentId, String cachedTitle,
                     String cachedImageUrl, String regionCode, String contentTypeId,
                     String lclsSystm1, String lclsSystm2, String lclsSystm3,
@@ -87,6 +90,10 @@ public class TripItem {
         this.orderIndex = orderIndex;
         this.address = address;
         this.memo = memo;
+    }
+
+    public void markPetFriendly(Boolean petFriendly) {
+        this.petFriendly = petFriendly;
     }
 
     public void changeTime(LocalTime startTime, LocalTime endTime) {

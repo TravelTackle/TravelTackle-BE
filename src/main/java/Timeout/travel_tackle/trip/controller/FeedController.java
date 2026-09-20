@@ -43,7 +43,7 @@ public class FeedController {
 
     @GetMapping
     @Operation(summary = "공개 여행 피드 조회",
-            description = "page/size/sort(latest|oldest|popular|relevance) + keyword 검색, region(지역 라벨 정확 일치), type(PLAN|RECORD) 필터. 모두 조합 가능")
+            description = "page/size/sort(latest|oldest|popular|relevance) + keyword 검색, region(지역 라벨 정확 일치), type(PLAN|RECORD), petFriendly(장소 전부 반려동물 동반 가능한 계획만) 필터. 모두 조합 가능")
     public ResponseEntity<Page<FeedItemResponse>> getFeed(
             @AuthenticationPrincipal Jwt jwt,
             @RequestParam(defaultValue = "0") int page,
@@ -51,7 +51,8 @@ public class FeedController {
             @RequestParam(defaultValue = "latest") String sort,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String region,
-            @RequestParam(required = false) String type
+            @RequestParam(required = false) String type,
+            @RequestParam(defaultValue = "false") boolean petFriendly
     ) {
         int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
         int safePage = Math.max(page, 0);
@@ -64,7 +65,7 @@ public class FeedController {
         Pageable pageable = PageRequest.of(safePage, safeSize); // 정렬은 QueryDSL 쿼리 안에서 처리
 
         UUID userId = jwt != null ? UUID.fromString(jwt.getSubject()) : null;
-        return ResponseEntity.ok(feedService.getFeed(pageable, feedSort, keyword, region, parseType(type), userId));
+        return ResponseEntity.ok(feedService.getFeed(pageable, feedSort, keyword, region, parseType(type), petFriendly, userId));
     }
 
     @GetMapping("/users/{userId}")

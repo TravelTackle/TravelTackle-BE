@@ -11,6 +11,7 @@ import Timeout.travel_tackle.tour.dto.RecommendationDtos.RecommendedSection;
 import Timeout.travel_tackle.tour.dto.RecommendationDtos.RecommendationsResponse;
 import Timeout.travel_tackle.tour.dto.TourDtos.ContentSummary;
 import Timeout.travel_tackle.tour.dto.TourDtos.Festival;
+import Timeout.travel_tackle.tour.client.TourApiClient;
 import Timeout.travel_tackle.tour.service.TourService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +31,7 @@ public class RecommendationService {
     private static final int MIN_RESULTS = 5;
 
     private static final Set<InterestTag> DEDICATED_SECTION_TAGS =
-            Set.of(InterestTag.FOOD, InterestTag.CAFE, InterestTag.FESTIVAL);
+            Set.of(InterestTag.FOOD, InterestTag.CAFE, InterestTag.FESTIVAL, InterestTag.PET_FRIENDLY);
 
     private final TourService tourService;
     private final UserPreferenceRepository userPreferenceRepository;
@@ -51,12 +52,33 @@ public class RecommendationService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        return new RecommendationsResponse(List.of(
+        List<RecommendedSection> sections = new ArrayList<>(List.of(
                 buildPersonalSection(preference.getInterestTags(), lDongRegnCd, preferredAreaCodes),
                 buildFoodSection(lDongRegnCd, regionName),
                 buildCafeSection(lDongRegnCd, regionName),
                 buildFestivalSection(lDongRegnCd)
         ));
+        if (preference.getInterestTags().contains(InterestTag.PET_FRIENDLY)) {
+            sections.add(1, buildPetSection(lDongRegnCd, regionName)); // 맞춤 추천 바로 다음
+        }
+        return new RecommendationsResponse(sections);
+    }
+
+    /** 관심사에 반려동물 동반이 있으면 관광공사 반려동물 동반여행 서비스에서 지역 기준으로 뽑는다 (관광지·숙박·음식점 섞임) */
+    private RecommendedSection buildPetSection(String lDongRegnCd, String regionName) {
+        String title = regionName.isBlank() ? "반려동물과 함께" : regionName + " 반려동물과 함께";
+        try {
+            List<ContentSummary> items = tourService.getFilteredContentsInLanguage(
+                    TourApiClient.PET_SERVICE, lDongRegnCd, null, null, null, FETCH_SIZE);
+            if (items.size() < MIN_RESULTS && lDongRegnCd != null) {
+                items = tourService.getFilteredContentsInLanguage(
+                        TourApiClient.PET_SERVICE, null, null, null, null, FETCH_SIZE);
+            }
+            return new RecommendedSection("pet", title, shuffleAndTake(items));
+        } catch (CustomException e) {
+            log.warn("Pet-friendly fetch failed for recommendation: {}", e.getMessage());
+            return new RecommendedSection("pet", title, List.of());
+        }
     }
 
     private RecommendedSection buildPersonalSection(Set<InterestTag> tags, String lDongRegnCd,

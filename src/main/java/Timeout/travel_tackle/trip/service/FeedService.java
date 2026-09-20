@@ -8,6 +8,7 @@ import Timeout.travel_tackle.entity.User;
 import Timeout.travel_tackle.global.exception.CustomException;
 import Timeout.travel_tackle.global.exception.ErrorCode;
 import Timeout.travel_tackle.trip.dto.FeedItemResponse;
+import Timeout.travel_tackle.trip.dto.PetFriendlySummary;
 import Timeout.travel_tackle.trip.dto.FeedSort;
 import Timeout.travel_tackle.trip.dto.PublicTripDetailResponse;
 import Timeout.travel_tackle.trip.dto.RegionCountResponse;
@@ -90,9 +91,17 @@ public class FeedService {
     @Transactional(readOnly = true)
     public Page<FeedItemResponse> getFeed(Pageable pageable, FeedSort sort, String keyword,
                                           String region, FeedItemType type, UUID userId) {
+        return getFeed(pageable, sort, keyword, region, type, false, userId);
+    }
+
+    /** petFriendly 면 장소가 전부 반려동물 동반 가능인 계획만 (뱃지 기준과 동일) */
+    @Transactional(readOnly = true)
+    public Page<FeedItemResponse> getFeed(Pageable pageable, FeedSort sort, String keyword,
+                                          String region, FeedItemType type, boolean petFriendly, UUID userId) {
         Set<UUID> tripIdsInRegion = resolveTripIdsInRegion(region);
         Page<Trip> trips = tripQueryRepository.findFeedTrips(
-                keyword == null ? null : keyword.trim(), tripIdsInRegion, type == FeedItemType.RECORD, sort, pageable);
+                keyword == null ? null : keyword.trim(), tripIdsInRegion, type == FeedItemType.RECORD, petFriendly,
+                sort, pageable);
         return buildFeedPage(trips, pageable, userId, type);
     }
 
@@ -248,7 +257,8 @@ public class FeedService {
 
         TripRecord record = records.get(trip.getId());
         if (record != null) {
-            items.add(FeedItemResponse.ofRecord(trip, record, thumbnailUrl, photoUrls, feedbackCount, saveCount, savedTripId, region));
+            items.add(FeedItemResponse.ofRecord(trip, record, thumbnailUrl, photoUrls, feedbackCount, saveCount, savedTripId, region,
+                    PetFriendlySummary.of(detail.days())));
         }
         return items;
     }

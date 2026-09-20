@@ -63,7 +63,8 @@ public class TourController {
     }
 
     @GetMapping("/contents")
-    @Operation(summary = "지역별 관광 콘텐츠 조회 및 키워드 검색")
+    @Operation(summary = "지역별 관광 콘텐츠 조회 및 키워드 검색",
+            description = "petFriendly=true 면 반려동물 동반 가능 장소만 (한국관광공사 반려동물 동반여행 서비스). contentId 는 일반 검색과 동일")
     public Page<ContentSummary> getContents(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String areaCode,
@@ -71,28 +72,30 @@ public class TourController {
             @RequestParam(required = false) String contentTypeId,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(defaultValue = "A") String arrange
+            @RequestParam(defaultValue = "A") String arrange,
+            @RequestParam(defaultValue = "false") boolean petFriendly
     ) {
         return tourService.getContents(
-                keyword, areaCode, sigunguCode, contentTypeId, page, size, arrange);
+                keyword, areaCode, sigunguCode, contentTypeId, page, size, arrange, petFriendly);
     }
 
     @GetMapping("/contents/nearby")
-    @Operation(summary = "좌표 기반 주변 관광 콘텐츠 조회")
+    @Operation(summary = "좌표 기반 주변 관광 콘텐츠 조회 (petFriendly=true 면 반려동물 동반 가능 장소만)")
     public Page<ContentSummary> getNearbyContents(
             @RequestParam double longitude,
             @RequestParam double latitude,
             @RequestParam(defaultValue = "5000") int radius,
             @RequestParam(required = false) String contentTypeId,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "false") boolean petFriendly
     ) {
         return tourService.getNearbyContents(
-                longitude, latitude, radius, contentTypeId, page, size);
+                longitude, latitude, radius, contentTypeId, page, size, petFriendly);
     }
 
     @GetMapping("/contents/{contentId}")
-    @Operation(summary = "관광 콘텐츠 상세 및 이미지 조회")
+    @Operation(summary = "관광 콘텐츠 상세 및 이미지 조회 (반려동물 동반 안내 petInfo 포함, 미등록 장소는 null)")
     public ContentDetail getContentDetail(@PathVariable String contentId) {
         return tourService.getContentDetail(contentId);
     }

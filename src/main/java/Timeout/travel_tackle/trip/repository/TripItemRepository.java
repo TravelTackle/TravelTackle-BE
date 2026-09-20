@@ -4,6 +4,7 @@ import Timeout.travel_tackle.entity.Trip;
 import Timeout.travel_tackle.entity.TripDay;
 import Timeout.travel_tackle.entity.TripItem;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -18,4 +19,11 @@ public interface TripItemRepository extends JpaRepository<TripItem, UUID> {
     @Query("select i.tripDay.id, count(i) from TripItem i where i.tripDay.trip = :trip group by i.tripDay.id")
     List<Object[]> countGroupByDay(@Param("trip") Trip trip);
     void deleteAllByTripDay(TripDay tripDay);
+
+    @Query("select distinct i.tourApiContentId from TripItem i where i.petFriendly is null")
+    List<String> findContentIdsWithUnknownPetFriendly();
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update TripItem i set i.petFriendly = :petFriendly where i.tourApiContentId = :contentId and i.petFriendly is null")
+    int fillPetFriendly(@Param("contentId") String contentId, @Param("petFriendly") boolean petFriendly);
 }

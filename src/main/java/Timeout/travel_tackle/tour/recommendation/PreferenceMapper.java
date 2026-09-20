@@ -25,6 +25,7 @@ public final class PreferenceMapper {
             case ACTIVITY    -> new TourApiParams("28", "LS",  null);
             case K_POP       -> new TourApiParams("15", "EV",  "EV02");
             case PHOTOGRAPHY -> new TourApiParams("12", "VE",  "VE01");
+            case PET_FRIENDLY -> new TourApiParams(null, null, null); // 전용 섹션에서 반려동물 서비스로 조회하므로 필터 없음
         };
     }
 
