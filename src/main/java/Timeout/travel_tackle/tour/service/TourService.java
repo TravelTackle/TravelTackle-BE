@@ -145,7 +145,7 @@ public class TourService {
      * 이름으로 TourAPI를 다시 검색해 contentId를 붙이고, 매칭되지 않는 항목은 건너뛴다.
      * 음식점·숙박이거나 연관 데이터가 없으면 빈 목록(호출 측에서 주변 관광지로 대체).
      */
-    @Cacheable(cacheNames = "tourRelated", key = "#contentId + ':' + #limit")
+    @Cacheable(cacheNames = "tourRelated", key = "#contentId + ':' + #limit", unless = "#result.isEmpty()")
     public List<ContentSummary> getRelatedContents(String contentId, int limit) {
         if (limit < 1 || limit > MAX_RELATED_LIMIT) {
             throw new CustomException(ErrorCode.INVALID_TOUR_SEARCH_CONDITION);
