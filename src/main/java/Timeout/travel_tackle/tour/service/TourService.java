@@ -20,8 +20,15 @@ import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.time.LocalDate;
+import java.time.YearMonth;
+import java.util.Comparator;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
 
 @Slf4j
@@ -31,6 +38,14 @@ public class TourService {
 
     private static final int MAX_PAGE_SIZE = 50;
     private static final int MAX_RADIUS_METERS = 20_000;
+
+    private static final int MAX_RELATED_LIMIT = 8;
+    // TourAPI 미등록 항목(상업시설·교통시설 등)이 약 40% 빠지므로 노출 수보다 넉넉히 후보를 잡는다
+    private static final int RELATED_CANDIDATES = 16;
+    private static final int RELATED_FETCH_SIZE = 50; // 연관 API의 관광지당 최대 제공 건수
+    private static final String RELATED_CATEGORY = "관광지";
+    private static final Set<String> NO_RELATED_TYPES = Set.of("39", "32"); // 음식점, 숙박
+    private static final ExecutorService RELATED_MATCHER = Executors.newVirtualThreadPerTaskExecutor();
 
     private final TourApiClient tourApiClient;
 
@@ -91,6 +106,46 @@ public class TourService {
         }
         return toPage(tourApiClient.getNearbyContents(
                 longitude, latitude, radius, contentTypeId, page, size));
+    }
+
+    /**
+     * 관광지의 연관 관광지를 연관 순위순으로 반환한다. 연관 API는 자체 코드/이름만 주므로
+     * 이름으로 TourAPI를 다시 검색해 contentId를 붙이고, 매칭되지 않는 항목은 건너뛴다.
+     * 음식점·숙박이거나 연관 데이터가 없으면 빈 목록(호출 측에서 주변 관광지로 대체).
+     */
+    @Cacheable(cacheNames = "tourRelated", key = "#contentId + ':' + #limit")
+    public List<ContentSummary> getRelatedContents(String contentId, int limit) {
+        if (limit < 1 || limit > MAX_RELATED_LIMIT) {
+            throw new CustomException(ErrorCode.INVALID_TOUR_SEARCH_CONDITION);
+        }
+        TourApiResult common = tourApiClient.getCommonDetail(contentId);
+        if (common.items().isEmpty()) {
+            throw new CustomException(ErrorCode.TOUR_CONTENT_NOT_FOUND);
+        }
+        JsonNode origin = common.items().getFirst();
+        String regionCode = text(origin, "lDongRegnCd");
+        String signguPart = text(origin, "lDongSignguCd");
+        String title = text(origin, "title");
+        if (NO_RELATED_TYPES.contains(text(origin, "contenttypeid"))
+                || regionCode == null || signguPart == null || title == null) {
+            return List.of();
+        }
+
+        List<JsonNode> related = findRelatedRows(title, regionCode, regionCode + signguPart);
+        List<CompletableFuture<ContentSummary>> matched = related.stream()
+                .filter(row -> RELATED_CATEGORY.equals(text(row, "rlteCtgryLclsNm")))
+                .sorted(Comparator.comparingInt(row -> rank(row)))
+                .limit(RELATED_CANDIDATES)
+                .map(row -> CompletableFuture.supplyAsync(() -> matchContent(row), RELATED_MATCHER))
+                .toList();
+
+        // 순위 순서를 유지한 채 매칭된 것만 limit개까지
+        return matched.stream()
+                .map(CompletableFuture::join)
+                .filter(Objects::nonNull)
+                .filter(summary -> !contentId.equals(summary.contentId()))
+                .limit(limit)
+                .toList();
     }
 
     @Cacheable(cacheNames = "tourDetails", key = "#contentId")
@@ -330,5 +385,78 @@ public class TourService {
         } catch (DateTimeParseException exception) {
             return null;
         }
+    }
+
+    /** 기준월 데이터가 아직 없을 수 있어 직전 달 → 전전달 순으로 조회한다. */
+    private List<JsonNode> findRelatedRows(String title, String areaCd, String signguCd) {
+        String keyword = stripParenthesis(title);
+        for (int monthsAgo = 1; monthsAgo <= 2; monthsAgo++) {
+            String baseYm = YearMonth.now().minusMonths(monthsAgo)
+                    .format(DateTimeFormatter.ofPattern("yyyyMM"));
+            List<JsonNode> rows = tourApiClient
+                    .getRelatedTours(baseYm, areaCd, signguCd, keyword, RELATED_FETCH_SIZE).items();
+            List<JsonNode> own = ownRows(rows, keyword);
+            if (!own.isEmpty()) {
+                return own;
+            }
+        }
+        return List.of();
+    }
+
+    /** 부분 일치 검색이라 여러 중심 관광지가 섞여 오므로, 이름이 가장 가까운 한 곳의 행만 남긴다. */
+    private List<JsonNode> ownRows(List<JsonNode> rows, String keyword) {
+        String target = normalizeName(keyword);
+        return rows.stream()
+                .filter(row -> {
+                    String name = normalizeName(stripParenthesis(text(row, "tAtsNm")));
+                    return name.equals(target);
+                })
+                .toList();
+    }
+
+    private ContentSummary matchContent(JsonNode row) {
+        String name = text(row, "rlteTatsNm");
+        if (name == null) {
+            return null;
+        }
+        try {
+            String target = normalizeName(name);
+            String signguName = text(row, "rlteSignguNm");
+            return tourApiClient.searchContents(name, null, null, null, 1, 10, "A").items().stream()
+                    .filter(item -> isSameName(target, text(item, "title")))
+                    // 동명 장소는 연관 데이터의 시군구가 주소에 포함된 쪽을 우선
+                    .min(Comparator.comparingInt(item ->
+                            signguName != null && address(item) != null
+                                    && address(item).contains(signguName) ? 0 : 1))
+                    .map(this::toSummary)
+                    .orElse(null);
+        } catch (CustomException exception) {
+            log.warn("related content matching failed: name={}", name);
+            return null;
+        }
+    }
+
+    /** 정확히 같거나 "이름 (부제)" 형태의 변형만 같은 장소로 본다. */
+    private boolean isSameName(String normalizedTarget, String title) {
+        if (title == null) {
+            return false;
+        }
+        return normalizeName(stripParenthesis(title)).equals(normalizedTarget);
+    }
+
+    private int rank(JsonNode row) {
+        try {
+            return Integer.parseInt(row.path("rlteRank").asText());
+        } catch (NumberFormatException exception) {
+            return Integer.MAX_VALUE;
+        }
+    }
+
+    private String stripParenthesis(String value) {
+        return value == null ? "" : value.replaceAll("\\s*[(（\\[［【].*?[)）\\]］】]", "").trim();
+    }
+
+    private String normalizeName(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", "");
     }
 }
