@@ -97,6 +97,16 @@ public class TourController {
         return tourService.getContentDetail(contentId);
     }
 
+    @GetMapping("/contents/{contentId}/related")
+    @Operation(summary = "연관 관광지 조회",
+            description = "티맵 이동 데이터 기반 연관 순위 순으로 관광지를 반환한다. 음식점·숙박이거나 연관 데이터가 없으면 빈 배열.")
+    public List<ContentSummary> getRelatedContents(
+            @PathVariable String contentId,
+            @RequestParam(defaultValue = "8") int limit
+    ) {
+        return tourService.getRelatedContents(contentId, limit);
+    }
+
     @GetMapping("/festivals")
     @Operation(summary = "기간별 축제·행사 조회")
     public Page<Festival> getFestivals(

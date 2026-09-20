@@ -31,6 +31,11 @@ public class TourCacheConfig {
         manager.setCaffeine(Caffeine.newBuilder()
                 .maximumSize(2_000)
                 .expireAfterWrite(Duration.ofMinutes(30)));
+        // 연관 관광지는 월 단위로만 바뀌고 계산 비용(외부 호출 최대 17회)이 커서 오래 캐싱
+        manager.registerCustomCache("tourRelated", Caffeine.newBuilder()
+                .maximumSize(2_000)
+                .expireAfterWrite(Duration.ofHours(12))
+                .build());
         return manager;
     }
 }
