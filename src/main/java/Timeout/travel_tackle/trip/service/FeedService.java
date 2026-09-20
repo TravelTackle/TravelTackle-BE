@@ -148,14 +148,14 @@ public class FeedService {
 
     private Page<FeedItemResponse> buildFeedPage(Page<Trip> trips, Pageable pageable, UUID viewerUserId, FeedItemType type) {
         List<UUID> tripIds = trips.getContent().stream().map(Trip::getId).toList();
-        Map<UUID, String> thumbnails = resolveThumbnails(trips.getContent());
+        Map<UUID, List<String>> photoUrls = resolvePhotoUrls(trips.getContent());
         Map<UUID, Long> feedbackCounts = resolveFeedbackCounts(tripIds);
         Map<UUID, Long> saveCounts = resolveSaveCounts(tripIds);
         Map<UUID, TripRecord> records = resolveRecords(tripIds);
         Map<UUID, UUID> savedTripIdsByOriginal = resolveSavedTripIdsByOriginal(viewerUserId, tripIds);
 
         List<FeedItemResponse> items = trips.getContent().stream()
-                .flatMap(trip -> buildFeedItems(trip, thumbnails, feedbackCounts, saveCounts, records, savedTripIdsByOriginal).stream())
+                .flatMap(trip -> buildFeedItems(trip, photoUrls, feedbackCounts, saveCounts, records, savedTripIdsByOriginal).stream())
                 .filter(item -> type == null || item.type() == type)
                 .toList();
 
@@ -232,10 +232,11 @@ public class FeedService {
     }
 
     private List<FeedItemResponse> buildFeedItems(
-            Trip trip, Map<UUID, String> thumbnails, Map<UUID, Long> feedbackCounts,
+            Trip trip, Map<UUID, List<String>> photoUrlsByTrip, Map<UUID, Long> feedbackCounts,
             Map<UUID, Long> saveCounts, Map<UUID, TripRecord> records, Map<UUID, UUID> savedTripIdsByOriginal
     ) {
-        String thumbnailUrl = thumbnails.get(trip.getId());
+        List<String> photoUrls = photoUrlsByTrip.getOrDefault(trip.getId(), List.of());
+        String thumbnailUrl = photoUrls.isEmpty() ? null : photoUrls.get(0);
         long feedbackCount = feedbackCounts.getOrDefault(trip.getId(), 0L);
         long saveCount = saveCounts.getOrDefault(trip.getId(), 0L);
         UUID savedTripId = savedTripIdsByOriginal.get(trip.getId());
@@ -247,7 +248,7 @@ public class FeedService {
 
         TripRecord record = records.get(trip.getId());
         if (record != null) {
-            items.add(FeedItemResponse.ofRecord(trip, record, thumbnailUrl, feedbackCount, saveCount, savedTripId, region));
+            items.add(FeedItemResponse.ofRecord(trip, record, thumbnailUrl, photoUrls, feedbackCount, saveCount, savedTripId, region));
         }
         return items;
     }
@@ -275,16 +276,16 @@ public class FeedService {
                 .collect(Collectors.toMap(r -> r.getTrip().getId(), r -> r));
     }
 
-    private Map<UUID, String> resolveThumbnails(List<Trip> trips) {
+    private Map<UUID, List<String>> resolvePhotoUrls(List<Trip> trips) {
         if (trips.isEmpty()) {
             return Map.of();
         }
         List<UUID> tripIds = trips.stream().map(Trip::getId).toList();
-        Map<UUID, String> thumbnails = new HashMap<>();
+        Map<UUID, List<String>> photoUrls = new HashMap<>();
         for (Object[] row : tripPhotoRepository.findThumbnailRowsByTripIds(tripIds)) {
-            thumbnails.putIfAbsent((UUID) row[0], (String) row[1]);
+            photoUrls.computeIfAbsent((UUID) row[0], k -> new ArrayList<>()).add((String) row[1]);
         }
-        return thumbnails;
+        return photoUrls;
     }
 
     private Map<UUID, Long> resolveSaveCounts(List<UUID> tripIds) {
