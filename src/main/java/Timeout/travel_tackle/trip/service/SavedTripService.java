@@ -27,6 +27,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -136,7 +137,7 @@ public class SavedTripService {
         List<Trip> originals = savedTrips.stream().map(SavedTrip::getOriginalTrip).toList();
         List<UUID> tripIds = originals.stream().map(Trip::getId).toList();
 
-        Map<UUID, String> thumbnails = resolveThumbnails(tripIds);
+        Map<UUID, List<String>> photoUrlsByTrip = resolvePhotoUrls(tripIds);
         Map<UUID, Long> feedbackCounts = resolveFeedbackCounts(tripIds);
         Map<UUID, Long> saveCounts = resolveSaveCounts(tripIds);
         Map<UUID, TripRecord> records = tripRecordRepository.findAllByTripIdIn(tripIds).stream()
@@ -145,7 +146,8 @@ public class SavedTripService {
         return savedTrips.stream()
                 .map(savedTrip -> {
                     UUID tripId = savedTrip.getOriginalTrip().getId();
-                    String thumbnailUrl = thumbnails.get(tripId);
+                    List<String> photoUrls = photoUrlsByTrip.getOrDefault(tripId, List.of());
+                    String thumbnailUrl = photoUrls.isEmpty() ? null : photoUrls.get(0);
                     long feedbackCount = feedbackCounts.getOrDefault(tripId, 0L);
                     long saveCount = saveCounts.getOrDefault(tripId, 0L);
 
@@ -155,7 +157,7 @@ public class SavedTripService {
                     if (savedTrip.getSourceType() == FeedItemType.RECORD && record != null) {
                         TripDetailResponse detail = tripQueryRepository.findDetail(savedTrip.getOriginalTrip());
                         return SavedTripResponse.ofRecord(
-                                savedTrip, record, RegionLabelResolver.fromTripDetail(detail), thumbnailUrl, feedbackCount, saveCount);
+                                savedTrip, record, RegionLabelResolver.fromTripDetail(detail), thumbnailUrl, photoUrls, feedbackCount, saveCount);
                     }
 
                     TripDetailResponse detail = tripQueryRepository.findDetail(savedTrip.getOriginalTrip());
@@ -165,12 +167,12 @@ public class SavedTripService {
                 .toList();
     }
 
-    private Map<UUID, String> resolveThumbnails(List<UUID> tripIds) {
-        Map<UUID, String> thumbnails = new HashMap<>();
+    private Map<UUID, List<String>> resolvePhotoUrls(List<UUID> tripIds) {
+        Map<UUID, List<String>> photoUrls = new HashMap<>();
         for (Object[] row : tripPhotoRepository.findThumbnailRowsByTripIds(tripIds)) {
-            thumbnails.putIfAbsent((UUID) row[0], (String) row[1]);
+            photoUrls.computeIfAbsent((UUID) row[0], k -> new ArrayList<>()).add((String) row[1]);
         }
-        return thumbnails;
+        return photoUrls;
     }
 
     private Map<UUID, Long> resolveFeedbackCounts(List<UUID> tripIds) {

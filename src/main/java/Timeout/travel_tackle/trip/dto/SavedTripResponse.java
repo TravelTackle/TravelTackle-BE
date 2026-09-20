@@ -27,6 +27,7 @@ public record SavedTripResponse(
         LocalDate startDate,
         LocalDate endDate,
         String thumbnailUrl,
+        List<String> photoUrls,
         long feedbackCount,
         long saveCount,
         UUID copiedTripId,
@@ -49,6 +50,7 @@ public record SavedTripResponse(
                 savedTrip.getOriginalTrip().getStartDate(),
                 savedTrip.getOriginalTrip().getEndDate(),
                 thumbnailUrl,
+                List.of(),
                 feedbackCount,
                 saveCount,
                 savedTrip.getCopiedTrip() != null ? savedTrip.getCopiedTrip().getId() : null,
@@ -58,7 +60,7 @@ public record SavedTripResponse(
     }
 
     public static SavedTripResponse ofRecord(
-            SavedTrip savedTrip, TripRecord record, String region, String thumbnailUrl,
+            SavedTrip savedTrip, TripRecord record, String region, String thumbnailUrl, List<String> photoUrls,
             long feedbackCount, long saveCount
     ) {
         return new SavedTripResponse(
@@ -73,6 +75,7 @@ public record SavedTripResponse(
                 savedTrip.getOriginalTrip().getStartDate(),
                 savedTrip.getOriginalTrip().getEndDate(),
                 thumbnailUrl,
+                photoUrls,
                 feedbackCount,
                 saveCount,
                 savedTrip.getCopiedTrip() != null ? savedTrip.getCopiedTrip().getId() : null,
